@@ -89,7 +89,7 @@ namespace VehicleFitmentAPI.Controllers
         }
 
         // POST api/<controller>
-        public IHttpActionResult Post([FromBody] VehicleInsert vehicle)
+        public IHttpActionResult Post([FromBody] Vehicle vehicle)
         {
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
 
