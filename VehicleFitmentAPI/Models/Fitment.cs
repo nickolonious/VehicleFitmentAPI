@@ -7,8 +7,9 @@ namespace VehicleFitmentAPI.Models
 {
     public class Fitment
     {
-        public int Id { get; set; }
+        public int FitmentId { get; set; }
         public int VehicleId { get; set; }
         public int PartId { get; set; }
+
     }
 }

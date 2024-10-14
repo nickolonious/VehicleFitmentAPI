@@ -3,19 +3,26 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
+using VehicleFitmentAPI.Services;
 
 namespace VehicleFitmentAPI.Controllers
 {
     public class VehicleController : ApiController
     {
 
+        private readonly IDatabaseService _databaseService;
+
+        public VehicleController(DatabaseService databaseService)
+        {
+            _databaseService = databaseService;
+        }
+
         // GET api/<controller>
         public IHttpActionResult Get()
         {
-            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
             List<Vehicle> vehicles = new List<Vehicle>();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = _databaseService.GetConnectionString())
             {
                 try
                 {
@@ -53,10 +60,9 @@ namespace VehicleFitmentAPI.Controllers
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
             Vehicle vehicle = new Vehicle();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = _databaseService.GetConnectionString())
             {
                 try
                 {
@@ -91,14 +97,13 @@ namespace VehicleFitmentAPI.Controllers
         // POST api/<controller>
         public IHttpActionResult Post([FromBody] Vehicle vehicle)
         {
-            string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
 
             if (vehicle.Make == String.Empty || vehicle.Model == String.Empty || vehicle.ModelYear <= 1930)
             {
                 return BadRequest("Make and Model must be filled out, Model Year must be greater than 1930");
             }
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(_databaseService.GetConnectionString().ToString()))
             {
                 try
                 {
@@ -130,17 +135,5 @@ namespace VehicleFitmentAPI.Controllers
                 }
             }
         }
-
-        // PUT api/<controller>/5
-        //public void Put(int id, [FromBody] string value)
-        //{
-
-        //}
-
-        //// DELETE api/<controller>/5
-        //public void Delete(int id)
-        //{
-
-        //}
     }
 }

@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
+using System.Web;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
 
 namespace VehicleFitmentAPI.Controllers
 {
-    public class PartsController : ApiController
+    public class FitmentController : ApiController
     {
 
         private readonly IDatabaseService _databaseService;
 
-        public PartsController(DatabaseService databaseService)
+        public FitmentController(DatabaseService databaseService)
         {
             _databaseService = databaseService;
         }
@@ -20,7 +22,7 @@ namespace VehicleFitmentAPI.Controllers
         // GET api/<controller>
         public IHttpActionResult Get()
         {
-            List<Part> parts = new List<Part>();
+            List<FitmentView> fitments = new List<FitmentView>();
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
             {
@@ -28,7 +30,7 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     connection.Open();
 
-                    string query = "SELECT PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part";
+                    string query = "SELECT f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID" ;
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -36,15 +38,14 @@ namespace VehicleFitmentAPI.Controllers
                         {
                             while (reader.Read())
                             {
-                                Part part = new Part
+                                FitmentView fitmentView = new FitmentView
                                 {
-                                    PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
-                                    PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
-                                    PartsName = reader.GetString(reader.GetOrdinal("Description")),
-                                    Description = reader.GetString(reader.GetOrdinal("Description")),
-                                    ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
+                                    FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID")),
+                                    Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim")),
+                                    PartName = reader.GetString(reader.GetOrdinal("PartsName")),
+                                    PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
                                 };
-                                parts.Add(part);
+                                fitments.Add(fitmentView);
                             }
                         }
                     }
@@ -54,14 +55,13 @@ namespace VehicleFitmentAPI.Controllers
                     return InternalServerError(ex);
                 }
             }
-            return Ok(parts);
+            return Ok(fitments);
         }
 
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-
-            Part part = new Part();
+            FitmentView fitment = new FitmentView();
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
             {
@@ -69,22 +69,19 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     connection.Open();
 
-                    string query = "SELECT TOP 1 PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part WHERE PartId = @PartId";
+                    string query = "SELECT TOP 1 f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID WHERE FitmentID = @FitmentID";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@PartId", id);
+                        command.Parameters.AddWithValue("@FitmentID", id);
 
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
-                            while (reader.Read())
-                            {
-                                part.PartId = reader.GetInt32(reader.GetOrdinal("PartId"));
-                                part.PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
-                                part.PartsName = reader.GetString(reader.GetOrdinal("PartsName"));
-                                part.Description = reader.GetString(reader.GetOrdinal("Description"));
-                                part.ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl"));
-                            }
+                            fitment.FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID"));
+                            fitment.Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim"));
+                            fitment.PartName = reader.GetString(reader.GetOrdinal("PartsName"));
+                            fitment.PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
+           
                         }
                     }
                 }
@@ -93,15 +90,15 @@ namespace VehicleFitmentAPI.Controllers
                     return InternalServerError(ex);
                 }
             }
-            return Ok(part);
+            return Ok(fitment);
         }
 
         // POST api/<controller>
-        public IHttpActionResult Post([FromBody] Part part)
+        public IHttpActionResult Post([FromBody] Fitment fitment)
         {
-            if (part.PartsNumber == 0 || part.PartsName == String.Empty || part.Description == String.Empty || part.ImageUrl == String.Empty)
+            if (fitment.PartId == 0 || fitment.VehicleId == 0)
             {
-                return BadRequest("PartsNumber, PartsName, Description, and ImageUrl must be filled out");
+                return BadRequest("PartId and VehicleId are required");
             }
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
@@ -110,20 +107,18 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     connection.Open();
 
-                    string query = "INSERT INTO Part (PartsNumber, PartsName, Description, ImageUrl) Values(@PartsNumber, @PartsName, @Description, @ImageUrl)";
+                    string query = "INSERT INTO Fitment (PartId, VehicleId) Values(@PartId, @VehicleId)";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@PartsNumber", part.PartsNumber);
-                        command.Parameters.AddWithValue("@PartsName", part.PartsName);
-                        command.Parameters.AddWithValue("@Description", part.Description);
-                        command.Parameters.AddWithValue("@ImageUrl", part.ImageUrl);
+                        command.Parameters.AddWithValue("@PartId", fitment.PartId);
+                        command.Parameters.AddWithValue("@VehicleId", fitment.VehicleId);
 
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            return Ok("Part inserted!");
+                            return Ok("Fitment inserted!");
                         }
                         else
                         {
