@@ -107,18 +107,30 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     connection.Open();
 
-                    string query = "INSERT INTO Fitment (PartId, VehicleId) Values(@PartId, @VehicleId)";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    string checkQuery = "SELECT COUNT(*) FROM Fitment WHERE PartId = @PartId AND VehicleId = @VehicleId";
+                    using (SqlCommand checkCommand = new SqlCommand(checkQuery, connection))
                     {
-                        command.Parameters.AddWithValue("@PartId", fitment.PartId);
-                        command.Parameters.AddWithValue("@VehicleId", fitment.VehicleId);
+                        checkCommand.Parameters.AddWithValue("@PartId", fitment.PartId);
+                        checkCommand.Parameters.AddWithValue("@VehicleId", fitment.VehicleId);
 
-                        int rowsAffected = command.ExecuteNonQuery();
+                        int count = (int)checkCommand.ExecuteScalar();
+                        if (count > 0)
+                        {
+                            return BadRequest("Fitment record already exists.");
+                        }
+                    }
+
+                    string insertQuery = "INSERT INTO Fitment (PartId, VehicleId) VALUES (@PartId, @VehicleId)";
+                    using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+                    {
+                        insertCommand.Parameters.AddWithValue("@PartId", fitment.PartId);
+                        insertCommand.Parameters.AddWithValue("@VehicleId", fitment.VehicleId);
+
+                        int rowsAffected = insertCommand.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            return Ok("Fitment inserted!");
+                            return Ok("Fitment inserted successfully.");
                         }
                         else
                         {

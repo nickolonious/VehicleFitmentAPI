@@ -1,0 +1,335 @@
+﻿@{
+    ViewBag.Title = "Admin";
+}
+
+<main>
+    <section class="row" aria-labelledby="aspnetTitle">
+        <div class="col-md-4">
+            <h2>Add a New Vehicle</h2>
+            <form class="mb-4" id="addVehicleForm">
+                <div class="form-group">
+                    <label for="modelYear">Model Year</label>
+                    <input type="number" id="modelYear" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="make">Make</label>
+                    <input type="text" id="make" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="model">Model</label>
+                    <input type="text" id="model" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="trim">Trim</label>
+                    <input type="text" id="trim" class="form-control" required>
+                </div>
+                <button type="submit" class="mt-4 btn btn-primary">Add Vehicle</button>
+            </form>
+        </div>
+
+        <div class="col-md-4">
+            <h2>Add a New Part</h2>
+            <form class="mb-4" id="addPartsForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="partsNumber">Parts Number</label>
+                    <input type="text" id="partsNumber" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="partsName">Parts Name</label>
+                    <input type="text" id="partsName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" class="form-control" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="imageFile">Image File</label>
+                    <input type="file" id="imageFile" class="form-control" required>
+                </div>
+                <button type="submit" class="mt-4 btn btn-primary">Add Part</button>
+            </form>
+        </div>
+
+        <div class="col-md-4">
+            <h2>Add Fitment</h2>
+            <form id="addFitmentForm">
+                <label for="vehicleFitmentDropdown">Select Vehicle:</label>
+                <select class="form-control mb-4 vehicle-dropdown" id="vehicleFitmentDropdown">
+                    <!-- Populated with vehicle options -->
+                </select>
+                <br>
+                <label for="partFitmentDropdown">Select Part:</label>
+                <select class="form-control mb-4" id="partFitmentDropdown">
+                    <!-- Populated with part options -->
+                </select>
+                <br>
+                <button class="btn btn-primary" type="submit">Add Fitment</button>
+            </form>
+
+        </div>
+    </section>
+    <section class="row">
+        <h2 class="lead">Edit / Delete Existing Vehicle.</h2>
+        <select  id="vehicleDropdown" class="vehicle-dropdown form-control mb-4">
+            <option value="">Select a vehicle</option>
+        </select>
+        <input type="hidden" id="selectedVehicleId" class="form-control">
+        <div class="form-group">
+            <label for="selectedModelYear">Model Year</label>
+            <input type="number" id="selectedModelYear" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="selectedMake">Make</label>
+            <input type="text" id="selectedMake" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="selectedModel">Model</label>
+            <input type="text" id="selectedModel" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="selectedTrim">Trim</label>
+            <input type="text" id="selectedTrim" class="form-control">
+        </div>
+        <button type="button" id="updateVehicleButton" class="mt-4 btn btn-secondary">Update Vehicle</button>
+        <button type="button" id="deleteVehicleButton" class="mt-4 btn btn-danger">Delete Vehicle</button>
+    </section>
+</main>
+
+@section Scripts {
+    <script type="text/javascript" src="~/Scripts/sharedScripts.js"></script>
+
+    <script type="text/javascript">
+
+        document.addEventListener('DOMContentLoaded', function () {
+            populateDropdowns();
+
+            function populateDropdowns() {
+
+                fetch('/api/parts')
+                    .then(response => response.json())
+                    .then(data => {
+                        var partDropdown = document.getElementById('partFitmentDropdown');
+                        if (partDropdown !== null) {
+                            data.forEach(part => {
+                                var option = document.createElement('option');
+                                option.value = part.PartId;
+                                option.text = `${part.PartsName} (${part.PartsNumber})`;
+                                partDropdown.add(option);
+                            });
+                        }
+                    })
+                    .catch(error => console.error('Error fetching parts:', error));
+            }
+
+            document.getElementById('addPartsForm').addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                var formData = new FormData();
+                formData.append('PartsNumber', document.getElementById('partsNumber').value);
+                formData.append('PartsName', document.getElementById('partsName').value);
+                formData.append('Description', document.getElementById('description').value);
+                formData.append('ImageFile', document.getElementById('imageFile').files[0]);
+
+                fetch('/api/parts', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Part added:', data);
+                        var dropdown = document.getElementById('partsDropdown');
+                        var option = document.createElement('option');
+                        option.value = data.Id;
+                        option.text = data.PartsName + " (" + data.PartsNumber + ")";
+                        dropdown.add(option);
+                    })
+                    .catch(error => {
+                        console.error('Error adding part:', error);
+                    });
+            });
+
+            document.getElementById('addVehicleForm').addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                var modelYear = document.getElementById('modelYear').value;
+                var make = document.getElementById('make').value;
+                var model = document.getElementById('model').value;
+                var trim = document.getElementById('trim').value;
+
+                var newVehicle = {
+                    ModelYear: modelYear,
+                    Make: make,
+                    Model: model,
+                    Trim: trim
+                };
+
+                fetch('/api/vehicle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newVehicle)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        var dropdown = document.getElementById('vehicleDropdown');
+                        var option = document.createElement('option');
+                        option.value = data.Id;
+                        option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
+                        dropdown.add(option);
+                    })
+                    .catch(error => {
+                        console.error('Error adding vehicle:', error);
+                    });
+            });
+
+            document.getElementById('addFitmentForm').addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                var vehicleId = document.getElementById('vehicleFitmentDropdown').value;
+                var partId = document.getElementById('partFitmentDropdown').value;
+
+                var newFitment = {
+                    VehicleId: vehicleId,
+                    PartId: partId
+                };
+
+                fetch('/api/fitment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newFitment)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Fitment added:', data);
+                    // TODO: Update the UI with the new fitment
+                })
+                .catch(error => {
+                    console.error('Error adding fitment:', error);
+                });
+
+            });
+
+            document.getElementById('updateVehicleButton').addEventListener('click', function () {
+                var vehicleId = document.getElementById('selectedVehicleId').value;
+                var modelYear = document.getElementById('selectedModelYear').value;
+                var make = document.getElementById('selectedMake').value;
+                var model = document.getElementById('selectedModel').value;
+                var trim = document.getElementById('selectedTrim').value;
+
+                var updatedVehicle = {
+                    VehicleId: Number(vehicleId),
+                    ModelYear: modelYear,
+                    Make: make,
+                    Model: model,
+                    Trim: trim
+                };
+
+                fetch('/api/vehicle/', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedVehicle)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Vehicle updated:', data);
+                        var dropdown = document.getElementById('vehicleDropdown');
+                        var option = dropdown.querySelector('option[value="' + data.VehicleId + '"]');
+                        option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
+                        dropdown.value = data.VehicleId;
+                    })
+                    .catch(error => {
+                        console.error('Error updating vehicle:', error);
+                    });
+            });
+
+            document.getElementById('deleteVehicleButton').addEventListener('click', function () {
+                var vehicleId = document.getElementById('selectedVehicleId').value;
+
+                fetch('/api/vehicle/' + vehicleId, {
+                    method: 'DELETE'
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Vehicle deleted:', data);
+                        var dropdown = document.getElementById('vehicleDropdown');
+                        var option = dropdown.querySelector('option[value="' + vehicleId + '"]');
+                        dropdown.removeChild(option);
+                        document.getElementById("selectVehicleId").value('');
+                        document.getElementById("selectedModelYear").value('');
+                        document.getElementById("selectedMake").value('');
+                        document.getElementById("selectedModel").value('');
+
+                    })
+                    .catch(error => {
+                        console.error('Error deleting vehicle:', error);
+                    });
+            });
+
+            document.getElementById('vehicleDropdown').addEventListener('change', function (event) {
+                var vehicleId = event.target.value;
+                console.log("event target value" + event);
+                if (vehicleId) {
+                    fetch('/api/vehicle/' + vehicleId)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok ' + response.statusText);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            document.getElementById('selectedVehicleId').value = data.VehicleId;
+                            document.getElementById('selectedModelYear').value = data.ModelYear;
+                            document.getElementById('selectedMake').value = data.Make;
+                            document.getElementById('selectedModel').value = data.Model;
+                            document.getElementById('selectedTrim').value = data.Trim;
+                            document.getElementById('updateVehicleButton').style.display = 'inline-block';
+                            document.getElementById('deleteVehicleButton').style.display = 'inline-block';
+                        })
+                        .catch(error => {
+                            console.error('Error fetching vehicle details:', error);
+                        });
+                } else {
+                    document.getElementById('vehicleId').value = '';
+                    document.getElementById('selectedModelYear').value = '';
+                    document.getElementById('selectedMake').value = '';
+                    document.getElementById('selectedModel').value = '';
+                    document.getElementById('selectedTrim').value = '';
+                    document.getElementById('updateVehicleButton').style.display = 'none';
+                    document.getElementById('deleteVehicleButton').style.display = 'none';
+                }
+            });
+
+        });
+
+    </script>
+}

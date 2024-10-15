@@ -1,26 +1,72 @@
 ﻿<main>
     <section class="row" aria-labelledby="aspnetTitle">
-        <h1 id="aspnetTitle">ASP.NET</h1>
-        <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS, and JavaScript.</p>
-        <p><a href="https://asp.net" class="btn btn-primary btn-md">Learn more &raquo;</a></p>
+        <h1 class="mb-4" id="aspnetTitle">Vehicle Fitment</h1>
     </section>
-    <div class="row">
-        <section class="col-md-4" aria-labelledby="gettingStartedTitle">
-            <h2 id="gettingStartedTitle">Getting started</h2>
-            <p>ASP.NET Web API is a framework that makes it easy to build HTTP services that reach
-            a broad range of clients, including browsers and mobile devices. ASP.NET Web API
-            is an ideal platform for building RESTful applications on the .NET Framework.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301870">Learn more &raquo;</a></p>
-        </section>
-        <section class="col-md-4" aria-labelledby="librariesTitle">
-            <h2 id="librariesTitle">Get more libraries</h2>
-            <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301871">Learn more &raquo;</a></p>
-        </section>
-        <section class="col-md-4" aria-labelledby="hostingTitle">
-            <h2 id="hostingTitle">Web Hosting</h2>
-            <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301872">Learn more &raquo;</a></p>
-        </section>>
-    </div>
+    <section class="row">
+        <h2 class="lead">Vehicle</h2>
+        <select id="vehicleDropdown" class="vehicle-dropdown form-control mb-4">
+            <option value="">Select a vehicle</option>
+        </select>
+    </section>
+    <h2 class="lead">Associated Parts</h2>
+    <section class="row" id="partsContainer">
+    </section>
 </main>
+
+
+@section Scripts {
+    <script type="text/javascript" src="~/Scripts/sharedScripts.js"></script>
+
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+
+            document.getElementById('vehicleDropdown').addEventListener('change', function (event) {
+                var vehicleId = event.target.value;
+                var partsContainer = document.getElementById('partsContainer');
+                partsContainer.innerHTML = '';
+
+                if (vehicleId) {
+                    fetch('/api/parts/' + vehicleId + '/parts')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        data.forEach(part => {
+                            var card = document.createElement('div');
+                            card.className = 'card mb-4';
+                            card.style.width = '18rem';
+
+                            var img = document.createElement('img');
+                            img.className = 'card-img-top';
+                            img.src = part.ImageUrl;
+                            img.alt = part.PartsName;
+
+                            var cardBody = document.createElement('div');
+                            cardBody.className = 'card-body';
+
+                            var cardTitle = document.createElement('h5');
+                            cardTitle.className = 'card-title';
+                            cardTitle.textContent = part.PartsName;
+
+                            var cardText = document.createElement('p');
+                            cardText.className = 'card-text';
+                            cardText.textContent = `Part #: ${part.PartsNumber}\nDescription: ${part.Description}`;
+
+                            cardBody.appendChild(cardTitle);
+                            cardBody.appendChild(cardText);
+                            card.appendChild(img);
+                            card.appendChild(cardBody);
+                            partsContainer.appendChild(card);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching parts:', error);
+                    });
+                }
+            });
+        });
+    </script>
+}

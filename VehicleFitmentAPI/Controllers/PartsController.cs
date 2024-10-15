@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
+using System.Web;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
@@ -40,7 +42,7 @@ namespace VehicleFitmentAPI.Controllers
                                 {
                                     PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
                                     PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
-                                    PartsName = reader.GetString(reader.GetOrdinal("Description")),
+                                    PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
                                     Description = reader.GetString(reader.GetOrdinal("Description")),
                                     ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
                                 };
@@ -97,12 +99,51 @@ namespace VehicleFitmentAPI.Controllers
         }
 
         // POST api/<controller>
-        public IHttpActionResult Post([FromBody] Part part)
+        public IHttpActionResult Post()
         {
-            if (part.PartsNumber == 0 || part.PartsName == String.Empty || part.Description == String.Empty || part.ImageUrl == String.Empty)
+            var httpRequest = HttpContext.Current.Request;
+            
+            var uploadedFile = httpRequest.Files[0];
+            var partsName = httpRequest.Form["PartsName"];
+            var description = httpRequest.Form["Description"];
+
+            if (!int.TryParse(httpRequest.Form["PartsNumber"], out int partsNumber))
             {
-                return BadRequest("PartsNumber, PartsName, Description, and ImageUrl must be filled out");
+                return BadRequest("Parts Number must be an Integer");
             }
+
+            if (partsNumber == 0 || partsName == String.Empty || description == String.Empty 
+                || (httpRequest.Files.Count == 0 || uploadedFile == null || uploadedFile.ContentLength == 0))
+            {
+                return BadRequest("PartsNumber, PartsName, Description, and Image must be filled out");
+            }
+
+            var fileName = Path.GetFileName(uploadedFile.FileName);
+            var filePath = HttpContext.Current.Server.MapPath("~/Images/PartsImages/" + fileName);
+            uploadedFile.SaveAs(filePath);
+
+            try
+            {
+                var directoryPath = Path.GetDirectoryName(filePath);
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                uploadedFile.SaveAs(filePath);
+            }
+            catch (Exception ex)
+            {
+                return InternalServerError(new Exception("Error saving the image file: " + ex.Message));
+            }
+
+            var newPart = new Part
+            {
+                PartsNumber = partsNumber,
+                PartsName = partsName,
+                Description = description,
+                ImageUrl = "/Images/PartsImages/" + uploadedFile.FileName
+            };
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
             {
@@ -114,16 +155,17 @@ namespace VehicleFitmentAPI.Controllers
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@PartsNumber", part.PartsNumber);
-                        command.Parameters.AddWithValue("@PartsName", part.PartsName);
-                        command.Parameters.AddWithValue("@Description", part.Description);
-                        command.Parameters.AddWithValue("@ImageUrl", part.ImageUrl);
+                        command.Parameters.AddWithValue("@PartsNumber", newPart.PartsNumber);
+                        command.Parameters.AddWithValue("@PartsName", newPart.PartsName);
+                        command.Parameters.AddWithValue("@Description", newPart.Description);
+                        command.Parameters.AddWithValue("@ImageUrl", newPart.ImageUrl);
 
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            return Ok("Part inserted!");
+                            //TODO: Update the view to show new part
+                            return Ok(newPart);
                         }
                         else
                         {
@@ -136,6 +178,58 @@ namespace VehicleFitmentAPI.Controllers
                     return InternalServerError(ex);
                 }
             }
+        }
+
+        // GET api/parts/{vehicleId}/parts
+        [HttpGet]
+        [Route("api/parts/{vehicleId}/parts")]
+        public IHttpActionResult GetPartsByVehicleId(int vehicleId)
+        {
+            List<Part> parts = new List<Part>();
+
+            using (SqlConnection connection = _databaseService.GetConnectionString())
+            {
+                try
+                {
+                    connection.Open();
+
+                    string query = @"
+                        SELECT p.PartId, p.PartsNumber, p.PartsName, p.Description, p.ImageUrl
+                        FROM Part p
+                        INNER JOIN Fitment f ON p.PartId = f.PartId
+                        WHERE f.VehicleId = @VehicleId";
+
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@VehicleId", vehicleId);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Part part = new Part
+                                {
+                                    PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
+                                    PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
+                                    PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
+                                    Description = reader.GetString(reader.GetOrdinal("Description")),
+                                    ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
+                                };
+
+
+
+                                parts.Add(part);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return InternalServerError(ex);
+                }
+            }
+            return Ok(parts);
         }
     }
 }

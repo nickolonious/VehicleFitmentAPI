@@ -361,4 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/VehicleFitmentAPI/Images/PartsImages
+/VehicleFitmentAPI/Images/PartsImages/*.jpg
+/VehicleFitmentAPI/Images/PartsImages/*.png
+/VehicleFitmentAPI/Images/PartsImages/*.gif
+/VehicleFitmentAPI/Images/PartsImages/*.bmp
+/VehicleFitmentAPI/Images/PartsImages/*.webp
+/VehicleFitmentAPI/Images/PartsImages/*.tiff
