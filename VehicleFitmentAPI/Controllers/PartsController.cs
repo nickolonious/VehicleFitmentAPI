@@ -62,7 +62,6 @@ namespace VehicleFitmentAPI.Controllers
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-
             Part part = new Part();
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
@@ -231,5 +230,148 @@ namespace VehicleFitmentAPI.Controllers
             }
             return Ok(parts);
         }
+
+        // PUT api/<controller>/5
+        public IHttpActionResult Put()
+        {
+            var httpRequest = HttpContext.Current.Request;
+
+            if (!int.TryParse(httpRequest.Form["PartId"], out int partId))
+            {
+                return BadRequest("PartId must be an Integer");
+            }
+
+            var partsName = httpRequest.Form["PartsName"];
+            var description = httpRequest.Form["Description"];
+            var uploadedFile = httpRequest.Files.Count > 0 ? httpRequest.Files[0] : null;
+
+            int? partsNumber = null;
+            if (int.TryParse(httpRequest.Form["PartsNumber"], out int parsedPartsNumber))
+            {
+                partsNumber = parsedPartsNumber;
+            }
+
+            var updateFields = new List<string>();
+            var parameters = new List<SqlParameter>();
+
+            if (partsNumber.HasValue)
+            {
+                updateFields.Add("PartsNumber = @PartsNumber");
+                parameters.Add(new SqlParameter("@PartsNumber", partsNumber.Value));
+            }
+
+            if (!string.IsNullOrEmpty(partsName))
+            {
+                updateFields.Add("PartsName = @PartsName");
+                parameters.Add(new SqlParameter("@PartsName", partsName));
+            }
+
+            if (!string.IsNullOrEmpty(description))
+            {
+                updateFields.Add("Description = @Description");
+                parameters.Add(new SqlParameter("@Description", description));
+            }
+
+            string imageUrl = null;
+            if (uploadedFile != null && uploadedFile.ContentLength > 0)
+            {
+                imageUrl = Path.GetFileName(uploadedFile.FileName);
+                var filePath = HttpContext.Current.Server.MapPath("~/Images/PartsImages/" + imageUrl);
+                uploadedFile.SaveAs(filePath);
+
+                updateFields.Add("ImageUrl = @ImageUrl");
+                parameters.Add(new SqlParameter("@ImageUrl", "/Images/PartsImages/" + imageUrl));
+            }
+
+            if (updateFields.Count == 0)
+            {
+                return BadRequest("No fields to update.");
+            }
+
+            parameters.Add(new SqlParameter("@PartId", partId));
+
+            var updateQuery = "UPDATE Part SET " + string.Join(", ", updateFields) + " WHERE PartId = @PartId";
+
+            try
+            {
+                using (SqlConnection connection = _databaseService.GetConnectionString())
+                {
+                    connection.Open();
+
+                    using (SqlCommand command = new SqlCommand(updateQuery, connection))
+                    {
+                        command.Parameters.AddRange(parameters.ToArray());
+
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return Ok(new
+                            {
+                                PartId = partId,
+                                PartsNumber = partsNumber,
+                                PartsName = partsName,
+                                Description = description,
+                                ImageUrl = "/Images/PartsImages/" + imageUrl
+                            });
+                        }
+                        else
+                        {
+                            return BadRequest("Update operation failed.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
+        }
+
+        // DELETE api/<controller>/5
+        public IHttpActionResult Delete(int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest("Invalid Vehicle ID.");
+            }
+
+            using (SqlConnection connection = _databaseService.GetConnectionString())
+            {
+                try
+                {
+                    connection.Open();
+
+                    string deleteFitmentsQuery = "DELETE FROM Fitment WHERE PartId = @PartId";
+                    using (SqlCommand deleteFitmentsCommand = new SqlCommand(deleteFitmentsQuery, connection))
+                    {
+                        deleteFitmentsCommand.Parameters.AddWithValue("@PartId", id);
+                        deleteFitmentsCommand.ExecuteNonQuery();
+                    }
+
+                    string deletePartQuery = "DELETE FROM Part WHERE PartId = @PartId";
+                    using (SqlCommand deleteVehicleCommand = new SqlCommand(deletePartQuery, connection))
+                    {
+                        deleteVehicleCommand.Parameters.AddWithValue("@PartId", id);
+
+                        int rowsAffected = deleteVehicleCommand.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return Ok("Part and associated Fitments deleted!");
+                        }
+                        else
+                        {
+                            return NotFound();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return InternalServerError(ex);
+                }
+            }
+        }
+
     }
 }

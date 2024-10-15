@@ -56,7 +56,6 @@ namespace VehicleFitmentAPI.Controllers
             return Ok(vehicles);
         }
 
-
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
@@ -110,7 +109,7 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     connection.Open();
                     
-                    string query = "INSERT INTO VEHICLE (Make, Model, ModelYear) Values(@Make, @Model, @ModelYear)";
+                    string query = "INSERT INTO VEHICLE (Make, Model, ModelYear, Trim) Values(@Make, @Model, @ModelYear, @Trim)";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -123,7 +122,7 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
-                            return Ok("Vehicle inserted!");
+                            return Ok(vehicle);
                         }
                         else
                         {
@@ -193,7 +192,6 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
-                            // Fetch the updated vehicle details
                             using (SqlCommand selectCommand = new SqlCommand(selectQuery, connection))
                             {
                                 selectCommand.Parameters.AddWithValue("@VehicleId", vehicle.VehicleId);
