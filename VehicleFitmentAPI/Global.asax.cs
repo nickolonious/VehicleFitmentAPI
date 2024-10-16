@@ -1,11 +1,6 @@
-﻿using SimpleInjector;
+﻿using Microsoft.Extensions.Caching.Memory;
+using SimpleInjector;
 using SimpleInjector.Integration.WebApi;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Linq;
-using System.Web;
 using System.Web.Http;
 using System.Web.Mvc;
 using System.Web.Optimization;
@@ -35,6 +30,8 @@ namespace VehicleFitmentAPI
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
             container.Register<IDatabaseService>(() => new DatabaseService(connectionString), Lifestyle.Singleton);
             container.Register<DatabaseService>(() => new DatabaseService(connectionString), Lifestyle.Singleton);
+            container.Register(() => new MemoryCache(new MemoryCacheOptions()), Lifestyle.Singleton);
+            container.Register<IMemoryCache>(() => container.GetInstance<MemoryCache>(), Lifestyle.Singleton);
             container.Register<PartsController>(Lifestyle.Transient);
             container.Register<VehicleController>(Lifestyle.Transient);
             container.Register<FitmentController>(Lifestyle.Transient);

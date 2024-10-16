@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Microsoft.Extensions.Caching.Memory;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Web.Caching;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
@@ -10,49 +12,61 @@ namespace VehicleFitmentAPI.Controllers
     public class VehicleController : ApiController
     {
         private readonly IDatabaseService _databaseService;
+        private readonly IMemoryCache _memoryCache;
 
-        public VehicleController(DatabaseService databaseService)
+        public VehicleController(DatabaseService databaseService, IMemoryCache memoryCache)
         {
             _databaseService = databaseService;
+            _memoryCache = memoryCache;
         }
 
         // GET api/<controller>
         public IHttpActionResult Get()
         {
-            List<Vehicle> vehicles = new List<Vehicle>();
 
-            using (SqlConnection connection = _databaseService.GetConnectionString())
+            const string cacheKey = "AllVehicles";
+
+            List<Vehicle> vehicles = _memoryCache.Get(cacheKey) as List<Vehicle>;
+
+            if (vehicles == null)
             {
-                try
+                using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
-                    connection.Open();
-
-                    string query = "SELECT VehicleId, Make, Model, Trim, ModelYear FROM Vehicle";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    try
                     {
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        connection.Open();
+
+                        string query = "SELECT VehicleId, Make, Model, Trim, ModelYear FROM Vehicle";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
                         {
-                            while (reader.Read())
+                            using (SqlDataReader reader = command.ExecuteReader())
                             {
-                                Vehicle vehicle = new Vehicle
+                                while (reader.Read())
                                 {
-                                    VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
-                                    Make = reader.GetString(reader.GetOrdinal("Make")),
-                                    Model = reader.GetString(reader.GetOrdinal("Model")),
-                                    ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
-                                    Trim = reader.GetString(reader.GetOrdinal("Trim"))
-                                };
-                                vehicles.Add(vehicle);
+                                    Vehicle vehicle = new Vehicle
+                                    {
+                                        VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
+                                        Make = reader.GetString(reader.GetOrdinal("Make")),
+                                        Model = reader.GetString(reader.GetOrdinal("Model")),
+                                        ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
+                                        Trim = reader.GetString(reader.GetOrdinal("Trim"))
+                                    };
+                                    vehicles.Add(vehicle);
+                                }
+
+                                _memoryCache.Set(cacheKey, vehicles);
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
-                }
+
             }
+
             return Ok(vehicles);
         }
 

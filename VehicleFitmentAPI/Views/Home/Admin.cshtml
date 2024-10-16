@@ -55,12 +55,10 @@
             <form id="addFitmentForm">
                 <label for="vehicleFitmentDropdown">Select Vehicle:</label>
                 <select class="form-control mb-4 vehicle-dropdown" id="vehicleFitmentDropdown">
-                    <!-- Populated with vehicle options -->
                 </select>
                 <br>
                 <label for="partFitmentDropdown">Select Part:</label>
                 <select class="parts-dropdown form-control mb-4" id="partFitmentDropdown">
-                    <!-- Populated with part options -->
                 </select>
                 <br>
                 <button class="btn btn-primary" type="submit">Add Fitment</button>
@@ -125,13 +123,26 @@
         </div>
     </section>
 
+    <div aria-live="polite" aria-atomic="true" style="position: relative; min-height: 200px;">
+        <div id="toastContainer" style="position: absolute; top: 0; right: 0;"></div>
+    </div>
+
+    <div id="toastTemplate" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="5000" style="display: none;">
+        <div class="toast-header">
+            <strong class="mr-auto" id="toastTitle"></strong>
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="toast-body" id="toastBody"></div>
+    </div>
+
 </main>
 
 @section Scripts {
     <script type="text/javascript" src="~/Scripts/sharedScripts.js"></script>
 
     <script type="text/javascript">
-
         document.addEventListener('DOMContentLoaded', function () {
             fetch('/api/parts')
             .then(response => response.json())
@@ -146,7 +157,7 @@
                         });
                     });
             })
-            .catch(error => console.error('Error fetching parts:', error));
+            .catch(error => showToast('Error', 'Error fetching parts:'));
             
             document.getElementById('addPartsForm').addEventListener('submit', function (event) {
                 event.preventDefault();
@@ -168,14 +179,16 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Part added:', data);
                     var dropdown = document.getElementById('partsDropdown');
                     var option = document.createElement('option');
                     option.value = data.Id;
                     option.text = data.PartsName + " (" + data.PartsNumber + ")";
                     dropdown.add(option);
+                    showToast('Success', 'Part Added');
+
                 })
-                .catch(error => {
+                    .catch(error => {
+                    showToast('Success', 'Error adding part');
                     console.error('Error adding part:', error);
                 });
             });
@@ -216,8 +229,10 @@
                             option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
                             dd.add(option);
                         });
+                        showToast("Success", "Vehicle Added!");
                     })
                     .catch(error => {
+                        showToast("Error", "Error Adding Vehicle");
                         console.error('Error adding vehicle:', error);
                     });
             });
@@ -249,8 +264,10 @@
                 .then(data => {
                     console.log('Fitment added:', data);
                     // TODO: Update the UI with the new fitment
+                    showToast("Success", "Fitment Added!");
                 })
-                .catch(error => {
+                    .catch(error => {
+                    showToast("Error", "Error Adding Fitment");
                     console.error('Error adding fitment:', error);
                 });
 
@@ -290,8 +307,10 @@
                         var option = dropdown.querySelector('option[value="' + data.VehicleId + '"]');
                         option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
                         dropdown.value = data.VehicleId;
+                        showToast("Success", "Vehicle Updated!");
                     })
                     .catch(error => {
+                        showToast("Error", "Error Updating Vehicle");
                         console.error('Error updating vehicle:', error);
                     });
             });
@@ -321,8 +340,11 @@
                     option.text = data.PartsName + " (" + data.PartsNumber + ")";
                     dropdown.value = data.PartId;
                     document.getElementById('imageName').innerText = data.ImageUrl;
+                    showToast("Success", "Part Updated!");
+
                 })
-                .catch(error => {
+                    .catch(error => {
+                    showToast("Error", "Error Updating Part!");
                     console.error('Error updating vehicle:', error);
                 });
             });
@@ -348,9 +370,11 @@
                         document.getElementById("selectedModelYear").value = '';
                         document.getElementById("selectedMake").value = '';
                         document.getElementById("selectedModel").value = '';
+                        showToast("Success", "Vehicle Deleted!");
 
                     })
                     .catch(error => {
+                        showToast("Error", "Error Deleting Vehicle");
                         console.error('Error deleting vehicle:', error);
                     });
             });
@@ -376,10 +400,11 @@
                         document.getElementById("selectedPartsNumber").value = '';
                         document.getElementById("selectedDescription").value = '';
                         document.getElementById("selectedImageUrl").value = '';
-                        document.getElementById("imageUrl").value = '';
+                        showToast('Success', 'Part deleted');
                     })
                     .catch(error => {
-                        console.error('Error deleting vehicle:', error);
+                        showToast('Error', 'Error deleting vehicle:', error);
+
                     });
             });
 
@@ -403,6 +428,7 @@
                         })
                         .catch(error => {
                             console.error('Error fetching vehicle details:', error);
+                            showToast("Error", "Error fetching vehicle details");
                         });
                 } else {
                     document.getElementById('vehicleId').value = '';
@@ -432,7 +458,8 @@
                             document.getElementById('imageName').innerText = data.ImageUrl;
                         })
                         .catch(error => {
-                            console.error('Error fetching vehicle details:', error);
+                            showToast("Error", "Error fetching parts details");
+                            console.error('Error fetching parts details:', error);
                         });
                 } else {
                     document.getElementById('selectedPartsId').value = '';
@@ -443,7 +470,32 @@
                 }
             });
 
+            function showToast(title, message, isError = false) {
+                var toastTemplate = document.getElementById('toastTemplate');
+                var toastClone = toastTemplate.cloneNode(true);
+                toastClone.id = '';
+                toastClone.style.display = 'block';
+
+                var toastTitle = toastClone.querySelector('#toastTitle');
+                var toastBody = toastClone.querySelector('#toastBody');
+
+                toastTitle.textContent = title;
+                toastBody.textContent = message;
+
+                if (isError) {
+                    toastClone.classList.add('bg-danger', 'text-white');
+                } else {
+                    toastClone.classList.add('bg-success', 'text-white');
+                }
+
+                var toastContainer = document.getElementById('toastContainer');
+                toastContainer.appendChild(toastClone);
+
+                $(toastClone).toast('show');
+            }
+
         });
+
 
     </script>
 }

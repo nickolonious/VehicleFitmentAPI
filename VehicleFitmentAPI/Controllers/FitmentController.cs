@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Web;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
@@ -81,7 +79,6 @@ namespace VehicleFitmentAPI.Controllers
                             fitment.Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim"));
                             fitment.PartName = reader.GetString(reader.GetOrdinal("PartsName"));
                             fitment.PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
-           
                         }
                     }
                 }
