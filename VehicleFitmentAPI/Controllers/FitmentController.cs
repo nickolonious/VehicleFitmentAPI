@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
@@ -15,79 +14,6 @@ namespace VehicleFitmentAPI.Controllers
         public FitmentController(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-        }
-
-        // GET api/<controller>
-        public IHttpActionResult Get()
-        {
-            List<FitmentView> fitments = new List<FitmentView>();
-
-            using (SqlConnection connection = _databaseService.GetConnectionString())
-            {
-                try
-                {
-                    connection.Open();
-
-                    string query = "SELECT f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID" ;
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                FitmentView fitmentView = new FitmentView
-                                {
-                                    FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID")),
-                                    Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim")),
-                                    PartName = reader.GetString(reader.GetOrdinal("PartsName")),
-                                    PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
-                                };
-                                fitments.Add(fitmentView);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
-                }
-            }
-            return Ok(fitments);
-        }
-
-        // GET api/<controller>/5
-        public IHttpActionResult Get(int id)
-        {
-            FitmentView fitment = new FitmentView();
-
-            using (SqlConnection connection = _databaseService.GetConnectionString())
-            {
-                try
-                {
-                    connection.Open();
-
-                    string query = "SELECT TOP 1 f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID WHERE FitmentID = @FitmentID";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        command.Parameters.AddWithValue("@FitmentID", id);
-
-                        using (SqlDataReader reader = command.ExecuteReader())
-                        {
-                            fitment.FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID"));
-                            fitment.Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim"));
-                            fitment.PartName = reader.GetString(reader.GetOrdinal("PartsName"));
-                            fitment.PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
-                }
-            }
-            return Ok(fitment);
         }
 
         // POST api/<controller>
@@ -141,5 +67,80 @@ namespace VehicleFitmentAPI.Controllers
                 }
             }
         }
+
+        // GET api/<controller>
+        // The Gets did not end up being used in this app, were not needed but kept them around to show work done
+
+        //public IHttpActionResult Get()
+        //{
+        //    List<FitmentView> fitments = new List<FitmentView>();
+
+        //    using (SqlConnection connection = _databaseService.GetConnectionString())
+        //    {
+        //        try
+        //        {
+        //            connection.Open();
+
+        //            string query = "SELECT f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID" ;
+
+        //            using (SqlCommand command = new SqlCommand(query, connection))
+        //            {
+        //                using (SqlDataReader reader = command.ExecuteReader())
+        //                {
+        //                    while (reader.Read())
+        //                    {
+        //                        FitmentView fitmentView = new FitmentView
+        //                        {
+        //                            FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID")),
+        //                            Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim")),
+        //                            PartName = reader.GetString(reader.GetOrdinal("PartsName")),
+        //                            PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
+        //                        };
+        //                        fitments.Add(fitmentView);
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            return InternalServerError(ex);
+        //        }
+        //    }
+        //    return Ok(fitments);
+        //}
+
+        //// GET api/<controller>/5
+        //public IHttpActionResult Get(int id)
+        //{
+        //    FitmentView fitment = new FitmentView();
+
+        //    using (SqlConnection connection = _databaseService.GetConnectionString())
+        //    {
+        //        try
+        //        {
+        //            connection.Open();
+
+        //            string query = "SELECT TOP 1 f.FitmentID, v.Make, v.Model, v.ModelYear, v.Trim, p.PartsName, p.PartsNumber FROM Fitment f JOIN Vehicle v ON f.VehicleID = v.VehicleID JOIN Part p ON f.PartID = p.PartID WHERE FitmentID = @FitmentID";
+
+        //            using (SqlCommand command = new SqlCommand(query, connection))
+        //            {
+        //                command.Parameters.AddWithValue("@FitmentID", id);
+
+        //                using (SqlDataReader reader = command.ExecuteReader())
+        //                {
+        //                    fitment.FitmentID = reader.GetInt32(reader.GetOrdinal("FitmentID"));
+        //                    fitment.Vehicle = reader.GetString(reader.GetOrdinal("Make")) + " " + reader.GetString(reader.GetOrdinal("Model")) + " " + reader.GetInt32(reader.GetOrdinal("ModelYear")) + " " + reader.GetString(reader.GetOrdinal("Trim"));
+        //                    fitment.PartName = reader.GetString(reader.GetOrdinal("PartsName"));
+        //                    fitment.PartNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            return InternalServerError(ex);
+        //        }
+        //    }
+        //    return Ok(fitment);
+        //}
     }
 }

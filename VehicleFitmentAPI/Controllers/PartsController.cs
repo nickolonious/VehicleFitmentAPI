@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Caching.Memory;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
@@ -11,87 +12,107 @@ namespace VehicleFitmentAPI.Controllers
 {
     public class PartsController : ApiController
     {
-
         private readonly IDatabaseService _databaseService;
+        private readonly IMemoryCache _memoryCache;
 
-        public PartsController(DatabaseService databaseService)
+        public PartsController(DatabaseService databaseService, IMemoryCache memoryCache)
         {
             _databaseService = databaseService;
+            _memoryCache = memoryCache;
         }
 
         // GET api/<controller>
         public IHttpActionResult Get()
         {
-            List<Part> parts = new List<Part>();
+            const string cacheKey = "GetAllParts";
 
-            using (SqlConnection connection = _databaseService.GetConnectionString())
+            List<Part> parts = _memoryCache.Get(cacheKey) as List<Part>;
+
+            if (parts == null)
             {
-                try
+                parts = new List<Part>();
+
+                using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
-                    connection.Open();
-
-                    string query = "SELECT PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    try
                     {
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        connection.Open();
+
+                        string query = "SELECT PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
                         {
-                            while (reader.Read())
+                            using (SqlDataReader reader = command.ExecuteReader())
                             {
-                                Part part = new Part
+                                while (reader.Read())
                                 {
-                                    PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
-                                    PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
-                                    PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
-                                    Description = reader.GetString(reader.GetOrdinal("Description")),
-                                    ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
-                                };
-                                parts.Add(part);
+                                    Part part = new Part
+                                    {
+                                        PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
+                                        PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
+                                        PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
+                                        Description = reader.GetString(reader.GetOrdinal("Description")),
+                                        ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
+                                    };
+                                    parts.Add(part);
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
-                }
+                _memoryCache.Set(cacheKey, parts);
             }
+
             return Ok(parts);
         }
 
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-            Part part = new Part();
+            string cacheKey = "GetPartId=" + id;
 
-            using (SqlConnection connection = _databaseService.GetConnectionString())
+            Part part = _memoryCache.Get(cacheKey) as Part;
+
+            if (part == null)
             {
-                try
+                using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
-                    connection.Open();
-
-                    string query = "SELECT TOP 1 PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part WHERE PartId = @PartId";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    try
                     {
-                        command.Parameters.AddWithValue("@PartId", id);
+                        connection.Open();
 
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        string query = "SELECT TOP 1 PartId, PartsNumber, PartsName, Description, ImageUrl FROM Part WHERE PartId = @PartId";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
                         {
-                            while (reader.Read())
+                            command.Parameters.AddWithValue("@PartId", id);
+
+                            using (SqlDataReader reader = command.ExecuteReader())
                             {
-                                part.PartId = reader.GetInt32(reader.GetOrdinal("PartId"));
-                                part.PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
-                                part.PartsName = reader.GetString(reader.GetOrdinal("PartsName"));
-                                part.Description = reader.GetString(reader.GetOrdinal("Description"));
-                                part.ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl"));
+                                while (reader.Read())
+                                {
+                                    part.PartId = reader.GetInt32(reader.GetOrdinal("PartId"));
+                                    part.PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber"));
+                                    part.PartsName = reader.GetString(reader.GetOrdinal("PartsName"));
+                                    part.Description = reader.GetString(reader.GetOrdinal("Description"));
+                                    part.ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl"));
+                                }
                             }
                         }
+
+                        if(part.PartId > 0)
+                        {
+                            _memoryCache.Set(cacheKey, part);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(ex);
+                    }
                 }
             }
             return Ok(part);
@@ -163,7 +184,7 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
-                            //TODO: Update the view to show new part
+                            _memoryCache.Remove("GetAllParts");
                             return Ok(newPart);
                         }
                         else
@@ -184,48 +205,59 @@ namespace VehicleFitmentAPI.Controllers
         [Route("api/parts/{vehicleId}/parts")]
         public IHttpActionResult GetPartsByVehicleId(int vehicleId)
         {
-            List<Part> parts = new List<Part>();
+            
+            string cacheKey = "GetPartsByVehicleId=" + vehicleId;
 
-            using (SqlConnection connection = _databaseService.GetConnectionString())
+            List<Part> parts = _memoryCache.Get(cacheKey) as List<Part>;
+
+            if (parts == null)
             {
-                try
-                {
-                    connection.Open();
+                parts = new List<Part>();
 
-                    string query = @"
+                using (SqlConnection connection = _databaseService.GetConnectionString())
+                {
+                    try
+                    {
+                        connection.Open();
+
+                        string query = @"
                         SELECT p.PartId, p.PartsNumber, p.PartsName, p.Description, p.ImageUrl
                         FROM Part p
                         INNER JOIN Fitment f ON p.PartId = f.PartId
                         WHERE f.VehicleId = @VehicleId";
 
 
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        command.Parameters.AddWithValue("@VehicleId", vehicleId);
-
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        using (SqlCommand command = new SqlCommand(query, connection))
                         {
-                            while (reader.Read())
+                            command.Parameters.AddWithValue("@VehicleId", vehicleId);
+
+                            using (SqlDataReader reader = command.ExecuteReader())
                             {
-                                Part part = new Part
+                                while (reader.Read())
                                 {
-                                    PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
-                                    PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
-                                    PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
-                                    Description = reader.GetString(reader.GetOrdinal("Description")),
-                                    ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
-                                };
+                                    Part part = new Part
+                                    {
+                                        PartId = reader.GetInt32(reader.GetOrdinal("PartId")),
+                                        PartsNumber = reader.GetInt32(reader.GetOrdinal("PartsNumber")),
+                                        PartsName = reader.GetString(reader.GetOrdinal("PartsName")),
+                                        Description = reader.GetString(reader.GetOrdinal("Description")),
+                                        ImageUrl = reader.GetString(reader.GetOrdinal("ImageUrl")),
+                                    };
 
-
-
-                                parts.Add(part);
+                                    parts.Add(part);
+                                }
                             }
                         }
+
+                        if (parts != null && parts.Count > 0)
+                        {
+                            _memoryCache.Set(cacheKey, parts);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(ex);
+                    }
                 }
             }
             return Ok(parts);
@@ -306,6 +338,10 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
+                            // There is a bug here where GetPartsByVehicleId would not be in sync after this update
+                            // Ran out of time
+                            _memoryCache.Remove("GetAllParts");
+                            _memoryCache.Remove("GetPartId=" + partId);
                             return Ok(new
                             {
                                 PartId = partId,
@@ -358,6 +394,8 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
+                            _memoryCache.Remove("GetAllParts");
+                            _memoryCache.Remove("GetPartId=" + id);
                             return Ok("Part and associated Fitments deleted!");
                         }
                         else

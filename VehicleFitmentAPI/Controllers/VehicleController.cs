@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Web.Caching;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
@@ -24,12 +23,15 @@ namespace VehicleFitmentAPI.Controllers
         public IHttpActionResult Get()
         {
 
-            const string cacheKey = "AllVehicles";
+            const string cacheKey = "GetAllVehicles";
 
             List<Vehicle> vehicles = _memoryCache.Get(cacheKey) as List<Vehicle>;
 
             if (vehicles == null)
             {
+
+                vehicles = new List<Vehicle>();
+
                 using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
                     try
@@ -55,16 +57,19 @@ namespace VehicleFitmentAPI.Controllers
                                     vehicles.Add(vehicle);
                                 }
 
-                                _memoryCache.Set(cacheKey, vehicles);
                             }
                         }
+                        if (vehicles.Count > 0)
+                        {
+                            _memoryCache.Set(cacheKey, vehicles);
+                        }
+
                     }
                     catch (Exception ex)
                     {
                         return InternalServerError(ex);
                     }
                 }
-
             }
 
             return Ok(vehicles);
@@ -73,36 +78,49 @@ namespace VehicleFitmentAPI.Controllers
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-            Vehicle vehicle = new Vehicle();
+            string cacheKey = "GetVehicleId=" + id;
 
-            using (SqlConnection connection = _databaseService.GetConnectionString())
+            Vehicle vehicle = _memoryCache.Get(cacheKey) as Vehicle;
+
+            if (vehicle == null)
             {
-                try
+                vehicle = new Vehicle();
+
+                using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
-                    connection.Open();
-
-                    string query = "SELECT TOP 1 VehicleId, Make, Model, Trim, ModelYear FROM Vehicle WHERE VehicleId = @VehicleId";
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    try
                     {
-                        command.Parameters.AddWithValue("@VehicleId", id);
+                        connection.Open();
 
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        string query = "SELECT TOP 1 VehicleId, Make, Model, Trim, ModelYear FROM Vehicle WHERE VehicleId = @VehicleId";
+
+                        using (SqlCommand command = new SqlCommand(query, connection))
                         {
-                            while (reader.Read())
+                            command.Parameters.AddWithValue("@VehicleId", id);
+
+                            using (SqlDataReader reader = command.ExecuteReader())
                             {
-                                vehicle.VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"));
-                                vehicle.Make = reader.GetString(reader.GetOrdinal("Make"));
-                                vehicle.Model = reader.GetString(reader.GetOrdinal("Model"));
-                                vehicle.ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear"));
-                                vehicle.Trim = reader.GetString(reader.GetOrdinal("Trim"));
+                                while (reader.Read())
+                                {
+                                    vehicle.VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"));
+                                    vehicle.Make = reader.GetString(reader.GetOrdinal("Make"));
+                                    vehicle.Model = reader.GetString(reader.GetOrdinal("Model"));
+                                    vehicle.ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear"));
+                                    vehicle.Trim = reader.GetString(reader.GetOrdinal("Trim"));
+                                }
                             }
                         }
+
+                        if (vehicle.VehicleId > 0)
+                        {
+                            _memoryCache.Set(cacheKey, vehicle);
+                        }
+
                     }
-                }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(ex);
+                    }
                 }
             }
             return Ok(vehicle);
@@ -111,7 +129,6 @@ namespace VehicleFitmentAPI.Controllers
         // POST api/<controller>
         public IHttpActionResult Post([FromBody] Vehicle vehicle)
         {
-
             if (vehicle.Make == String.Empty || vehicle.Trim == String.Empty || vehicle.Model == String.Empty || vehicle.ModelYear <= 1930)
             {
                 return BadRequest("Make, Model, and Trim must be filled out, Model Year must be greater than 1930");
@@ -122,7 +139,7 @@ namespace VehicleFitmentAPI.Controllers
                 try
                 {
                     connection.Open();
-                    
+
                     string query = "INSERT INTO VEHICLE (Make, Model, ModelYear, Trim) Values(@Make, @Model, @ModelYear, @Trim)";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
@@ -135,7 +152,8 @@ namespace VehicleFitmentAPI.Controllers
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
-                        {
+                        {                        
+                            _memoryCache.Remove("GetAllVehicles");
                             return Ok(vehicle);
                         }
                         else
@@ -163,27 +181,36 @@ namespace VehicleFitmentAPI.Controllers
             {
                 try
                 {
+                    Vehicle existingVehicle = null;
+
+                    string cacheKey = "GetVehicleId=" + vehicle.VehicleId;
+
+                    existingVehicle = _memoryCache.Get(cacheKey) as Vehicle;
+
                     connection.Open();
 
                     string selectQuery = "SELECT VehicleId, Make, Model, Trim, ModelYear FROM Vehicle WHERE VehicleId = @VehicleId";
-                    Vehicle existingVehicle = null;
 
-                    using (SqlCommand selectCommand = new SqlCommand(selectQuery, connection))
+                    if (existingVehicle == null)
                     {
-                        selectCommand.Parameters.AddWithValue("@VehicleId", vehicle.VehicleId);
 
-                        using (SqlDataReader reader = selectCommand.ExecuteReader())
+                        using (SqlCommand selectCommand = new SqlCommand(selectQuery, connection))
                         {
-                            if (reader.Read())
+                            selectCommand.Parameters.AddWithValue("@VehicleId", vehicle.VehicleId);
+
+                            using (SqlDataReader reader = selectCommand.ExecuteReader())
                             {
-                                existingVehicle = new Vehicle
+                                if (reader.Read())
                                 {
-                                    VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
-                                    Make = reader.GetString(reader.GetOrdinal("Make")),
-                                    Model = reader.GetString(reader.GetOrdinal("Model")),
-                                    ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
-                                    Trim = reader.GetString(reader.GetOrdinal("Trim"))
-                                };
+                                    existingVehicle = new Vehicle
+                                    {
+                                        VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
+                                        Make = reader.GetString(reader.GetOrdinal("Make")),
+                                        Model = reader.GetString(reader.GetOrdinal("Model")),
+                                        ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
+                                        Trim = reader.GetString(reader.GetOrdinal("Trim"))
+                                    };
+                                }
                             }
                         }
                     }
@@ -225,6 +252,8 @@ namespace VehicleFitmentAPI.Controllers
                                     }
                                 }
                             }
+
+                            _memoryCache.Set(cacheKey, existingVehicle);
 
                             return Ok(existingVehicle);
                         }
@@ -271,6 +300,9 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
+                            //Better to remove the individual vehicle from cache, but this is simpler
+                            _memoryCache.Remove("GetAllVehicles");
+                            _memoryCache.Remove("GetVehicleId=" + id);
                             return Ok("Vehicle and associated fitments deleted!");
                         }
                         else
