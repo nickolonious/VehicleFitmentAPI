@@ -79,6 +79,8 @@ namespace VehicleFitmentAPI.Controllers
 
             if (part == null)
             {
+                part = new Part();
+
                 using (SqlConnection connection = _databaseService.GetConnectionString())
                 {
                     try

@@ -282,6 +282,8 @@
     <None Include=".dockerignore">
       <DependentUpon>Dockerfile</DependentUpon>
     </None>
+    <None Include="Properties\PublishProfiles\VehicleFitmentAPI20241016133459.pubxml" />
+    <None Include="Properties\PublishProfiles\VehicleFitmentAPI20241016140327 - Web Deploy.pubxml" />
     <None Include="Scripts\jquery-3.7.0.intellisense.js" />
     <Content Include="Scripts\jquery-3.7.0.js" />
     <Content Include="Scripts\jquery-3.7.0.min.js" />
