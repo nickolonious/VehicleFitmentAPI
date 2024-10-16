@@ -36,6 +36,12 @@ CREATE TABLE Fitment (
 
 4. Clone Repo from Github
 
+5. Run the Application in either IIS or Docker (if that's setup on your computer)
+
+6. Go to the Admin Page where you can Add / Update / Delete Vehicle and Parts as well as Add Fitment Relationships
+
+7. Once enough are filled out you can view them on the Home Page
+
 
 
 
