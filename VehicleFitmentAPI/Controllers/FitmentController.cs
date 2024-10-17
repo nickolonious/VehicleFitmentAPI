@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Caching.Memory;
+using System;
 using System.Data.SqlClient;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
@@ -10,10 +11,12 @@ namespace VehicleFitmentAPI.Controllers
     {
 
         private readonly IDatabaseService _databaseService;
+        private readonly IMemoryCache _memoryCache;
 
-        public FitmentController(DatabaseService databaseService)
+        public FitmentController(DatabaseService databaseService, IMemoryCache memoryCache)
         {
             _databaseService = databaseService;
+            _memoryCache = memoryCache;
         }
 
         // POST api/<controller>
@@ -53,6 +56,7 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
+                            _memoryCache.Remove("GetPartsByVehicleId=" + fitment.VehicleId);
                             return Ok("Fitment inserted successfully.");
                         }
                         else
