@@ -48,14 +48,15 @@ CREATE TABLE Fitment (
 Biggest Challenges
 - I've never uploaded images into an app before, to further improve I would setup a image bucket on Azure and upload them there
 - Deployment, first time deploying to Azure
-- There are some newer flavors on the front end with .NET core
+- A little rusty with Razor
 
 Things I don't feel great about
 - The UI in general
 - I'd probably consolidate add, update, delete onto the same inputs for a simpler UI
 - There are a couple of caching issues I would have liked to resolve but I had already gone way over on alotted time
+- There was a requirement to search by make, model, and year which I did not do due to time constraints
 
-Overall I spent about 12 hours on this project which I know is way over.
+Overall I spent about 15 hours (12 hours of dev, 3 hours of Bug Remediation / Azure setup) on this project which I know is way over.
 
 
 
