@@ -117,7 +117,6 @@
                 <label for="selectedImageUrl">Image File</label>
                 <input type="file" id="selectedImageUrl" class="form-control" required>
             </div>
-            <p id="imageName"></p>
             <button type="button" id="updatePartsButton" class="mt-4 btn btn-secondary">Update Part</button>
             <button type="button" id="deletePartsButton" class="mt-4 btn btn-danger">Delete Part</button>
         </div>
@@ -127,7 +126,7 @@
         <div id="toastContainer" style="position: absolute; top: 0; right: 0;"></div>
     </div>
 
-    <div id="toastTemplate" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="3500" style="display: none;">
+    <div id="toastTemplate" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-delay="3000" style="display: none;">
         <div class="toast-header">
             <strong class="mr-auto" id="toastTitle"></strong>
         </div>
@@ -140,21 +139,9 @@
     <script type="text/javascript" src="~/Scripts/sharedScripts.js"></script>
     <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function () {
-            fetch('/api/parts')
-            .then(response => response.json())
-            .then(data => {
-                var dropdowns = document.getElementsByClassName('parts-dropdown');
-                    Array.from(dropdowns).forEach(dd => {
-                        data.forEach(part => {
-                            var option = document.createElement('option');
-                            option.value = part.PartId;
-                            option.text = `${part.PartsName} (${part.PartsNumber})`;
-                            dd.add(option);
-                        });
-                    });
-            })
-            .catch(error => showToast('Error', 'Error fetching parts:'));
-            
+            fetchVehicles();
+            fetchParts();
+           
             document.getElementById('addPartsForm').addEventListener('submit', function (event) {
                 event.preventDefault();
 
@@ -305,11 +292,8 @@
                     })
                     .then(data => {
                         console.log('Vehicle updated:', data);
-                        var dropdown = document.getElementById('vehicleDropdown');
-                        var option = dropdown.querySelector('option[value="' + data.VehicleId + '"]');
-                        option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
-                        dropdown.value = data.VehicleId;
                         showToast("Success", "Vehicle Updated!");
+                        fetchVehicles();
                     })
                     .catch(error => {
                         showToast("Error", "Error Updating Vehicle");
@@ -336,12 +320,7 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Part Updated:', data);
-                    var dropdown = document.getElementById('partsDropdown');
-                    var option = dropdown.querySelector('option[value="' + data.PartId + '"]');
-                    option.text = data.PartsName + " (" + data.PartsNumber + ")";
-                    dropdown.value = data.PartId;
-                    document.getElementById('imageName').innerText = data.ImageUrl;
+                    fetchParts();
                     showToast("Success", "Part Updated!");
 
                 })
@@ -457,7 +436,6 @@
                             document.getElementById('selectedPartsName').value = data.PartsName;
                             document.getElementById('selectedPartsNumber').value = data.PartsNumber;
                             document.getElementById('selectedDescription').value = data.Description;
-                            document.getElementById('imageName').innerText = data.ImageUrl;
                         })
                         .catch(error => {
                             showToast("Error", "Error fetching parts details");
@@ -468,7 +446,6 @@
                     document.getElementById('selectedPartsName').value = '';
                     document.getElementById('selectedPartsNumber').value = '';
                     document.getElementById('selectedDescription').value = '';
-                    document.getElementById('imageName').innerText = '';
                 }
             });
 
@@ -496,8 +473,72 @@
                 $(toastClone).toast('show');
             }
 
+            function fetchParts() {
+                fetch('/api/parts')
+                    .then(response => response.json())
+                    .then(data => {
+                        var dropdowns = document.getElementsByClassName('parts-dropdown');
+
+                        for (var i = 0; i < dropdowns.length; i++) {
+                            var dropdown = dropdowns[i];
+
+                            dropdown.innerHTML = '';
+
+                            var defaultOption = document.createElement('option');
+                            defaultOption.value = '';
+                            defaultOption.text = 'Select a Part';
+                            dropdown.add(defaultOption);
+                        }
+
+                        Array.from(dropdowns).forEach(dd => {
+                            data.forEach(part => {
+                                var option = document.createElement('option');
+                                option.value = part.PartId;
+                                option.text = `${part.PartsName} (${part.PartsNumber})`;
+                                dd.add(option);
+                            });
+                        });
+                    })
+                    .catch(error => showToast('Error', 'Error fetching parts:'));
+            }
+
+            function fetchVehicles() {
+                fetch('/api/vehicle')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok ' + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        var dropdowns = document.getElementsByClassName('vehicle-dropdown');
+
+                        for (var i = 0; i < dropdowns.length; i++) {
+                            var dropdown = dropdowns[i];
+
+                            dropdown.innerHTML = '';
+
+                            var defaultOption = document.createElement('option');
+                            defaultOption.value = '';
+                            defaultOption.text = 'Select a Vehicle';
+                            dropdown.add(defaultOption);
+                        }
+
+                        Array.from(dropdowns).forEach(dd => {
+                            data.forEach(vehicle => {
+                                var option = document.createElement('option');
+                                option.value = vehicle.VehicleId;
+                                option.text = vehicle.ModelYear + " " + vehicle.Make + " " + vehicle.Model + " " + vehicle.Trim;
+                                dd.add(option);
+                            });
+                        });
+
+                    })
+                    .catch(error => {
+                        console.error('Error fetching vehicles:', error);
+                    });
+            }
+
         });
-
-
     </script>
 }

@@ -7,6 +7,8 @@ using System.Web;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
+using Azure.Storage.Blobs;
+
 
 namespace VehicleFitmentAPI.Controllers
 {
@@ -14,11 +16,15 @@ namespace VehicleFitmentAPI.Controllers
     {
         private readonly IDatabaseService _databaseService;
         private readonly IMemoryCache _memoryCache;
+        private readonly BlobServiceClient _blobServiceClient;
+        private readonly string _environment;
 
-        public PartsController(DatabaseService databaseService, IMemoryCache memoryCache)
+        public PartsController(DatabaseService databaseService, IMemoryCache memoryCache, BlobServiceClient blobServiceClient)
         {
             _databaseService = databaseService;
             _memoryCache = memoryCache;
+            _blobServiceClient = blobServiceClient;
+            _environment = System.Configuration.ConfigurationManager.AppSettings["Environment"];
         }
 
         // GET api/<controller>
@@ -124,7 +130,7 @@ namespace VehicleFitmentAPI.Controllers
         public IHttpActionResult Post()
         {
             var httpRequest = HttpContext.Current.Request;
-            
+
             var uploadedFile = httpRequest.Files[0];
             var partsName = httpRequest.Form["PartsName"];
             var description = httpRequest.Form["Description"];
@@ -134,29 +140,48 @@ namespace VehicleFitmentAPI.Controllers
                 return BadRequest("Parts Number must be an Integer");
             }
 
-            if (partsNumber == 0 || partsName == String.Empty || description == String.Empty 
+            if (partsNumber == 0 || partsName == String.Empty || description == String.Empty
                 || (httpRequest.Files.Count == 0 || uploadedFile == null || uploadedFile.ContentLength == 0))
             {
                 return BadRequest("PartsNumber, PartsName, Description, and Image must be filled out");
             }
 
-            var fileName = Path.GetFileName(uploadedFile.FileName);
-            var filePath = HttpContext.Current.Server.MapPath("~/Images/PartsImages/" + fileName);
-            uploadedFile.SaveAs(filePath);
+            string imageUrl;
 
-            try
+            if (_environment == "Production")
             {
-                var directoryPath = Path.GetDirectoryName(filePath);
-                if (!Directory.Exists(directoryPath))
+                var fileName = Path.GetFileName(uploadedFile.FileName);
+                var blobContainer = _blobServiceClient.GetBlobContainerClient("partsimages");
+
+                blobContainer.CreateIfNotExists();
+
+                var blobClient = blobContainer.GetBlobClient(fileName);
+
+                try
                 {
-                    Directory.CreateDirectory(directoryPath);
+                    using (var stream = uploadedFile.InputStream)
+                    {
+                        blobClient.Upload(stream, true);
+                    }
+                    imageUrl = blobClient.Uri.ToString();
                 }
-
-                uploadedFile.SaveAs(filePath);
+                catch (Exception ex)
+                {
+                    return InternalServerError(new Exception("Error saving the image file to Blob Storage: " + ex.Message));
+                }
             }
-            catch (Exception ex)
+            else
             {
-                return InternalServerError(new Exception("Error saving the image file: " + ex.Message));
+                var filePath = HttpContext.Current.Server.MapPath("~/Images/" + uploadedFile.FileName);
+                try
+                {
+                    uploadedFile.SaveAs(filePath);
+                    imageUrl = "/Images/" + uploadedFile.FileName;
+                }
+                catch (Exception ex)
+                {
+                    return InternalServerError(new Exception("Error saving the image file locally: " + ex.Message));
+                }
             }
 
             var newPart = new Part
@@ -164,7 +189,7 @@ namespace VehicleFitmentAPI.Controllers
                 PartsNumber = partsNumber,
                 PartsName = partsName,
                 Description = description,
-                ImageUrl = "/Images/PartsImages/" + uploadedFile.FileName
+                ImageUrl = imageUrl
             };
 
             using (SqlConnection connection = _databaseService.GetConnectionString())
@@ -275,23 +300,67 @@ namespace VehicleFitmentAPI.Controllers
                 return BadRequest("PartId must be an Integer");
             }
 
+            if (!int.TryParse(httpRequest.Form["PartsNumber"], out int partsNumber))
+            {
+                return BadRequest("Parts Number must be an Integer");
+            }
+
+            if (partId == 0)
+            {
+                return BadRequest("PartId must be provided");
+            }
+
             var partsName = httpRequest.Form["PartsName"];
             var description = httpRequest.Form["Description"];
             var uploadedFile = httpRequest.Files.Count > 0 ? httpRequest.Files[0] : null;
 
-            int? partsNumber = null;
-            if (int.TryParse(httpRequest.Form["PartsNumber"], out int parsedPartsNumber))
+            string imageUrl = null;
+            
+            if (uploadedFile != null)
             {
-                partsNumber = parsedPartsNumber;
+                if (_environment == "Production")
+                {
+                    var fileName = Path.GetFileName(uploadedFile.FileName);
+                    var blobContainer = _blobServiceClient.GetBlobContainerClient("partsimages");
+                    blobContainer.CreateIfNotExists();
+
+                    var blobClient = blobContainer.GetBlobClient(fileName);
+
+                    try
+                    {
+                        using (var stream = uploadedFile.InputStream)
+                        {
+                            blobClient.Upload(stream, true);
+                        }
+                        imageUrl = blobClient.Uri.ToString();
+                    }
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(new Exception("Error saving the image file to Blob Storage: " + ex.Message));
+                    }
+                }
+                else
+                {
+                    var filePath = HttpContext.Current.Server.MapPath("~/Images/" + uploadedFile.FileName);
+                    try
+                    {
+                        uploadedFile.SaveAs(filePath);
+                        imageUrl = "/Images/" + uploadedFile.FileName;
+                    }
+                    catch (Exception ex)
+                    {
+                        return InternalServerError(new Exception("Error saving the image file locally: " + ex.Message));
+                    }
+                }
             }
 
             var updateFields = new List<string>();
             var parameters = new List<SqlParameter>();
 
-            if (partsNumber.HasValue)
+            if (partsNumber != 0)
             {
                 updateFields.Add("PartsNumber = @PartsNumber");
-                parameters.Add(new SqlParameter("@PartsNumber", partsNumber.Value));
+                parameters.Add(new SqlParameter("@PartsNumber", partsNumber));
             }
 
             if (!string.IsNullOrEmpty(partsName))
@@ -306,29 +375,23 @@ namespace VehicleFitmentAPI.Controllers
                 parameters.Add(new SqlParameter("@Description", description));
             }
 
-            string imageUrl = null;
-            if (uploadedFile != null && uploadedFile.ContentLength > 0)
+            if (!string.IsNullOrEmpty(imageUrl))
             {
-                imageUrl = Path.GetFileName(uploadedFile.FileName);
-                var filePath = HttpContext.Current.Server.MapPath("~/Images/PartsImages/" + imageUrl);
-                uploadedFile.SaveAs(filePath);
-
                 updateFields.Add("ImageUrl = @ImageUrl");
-                parameters.Add(new SqlParameter("@ImageUrl", "/Images/PartsImages/" + imageUrl));
+                parameters.Add(new SqlParameter("@ImageUrl", imageUrl));
             }
 
             if (updateFields.Count == 0)
             {
-                return BadRequest("No fields to update.");
+                return BadRequest("No fields to update");
             }
 
+            var updateQuery = "UPDATE Part SET " + string.Join(", ", updateFields) + " WHERE PartId = @PartId";
             parameters.Add(new SqlParameter("@PartId", partId));
 
-            var updateQuery = "UPDATE Part SET " + string.Join(", ", updateFields) + " WHERE PartId = @PartId";
-
-            try
+            using (SqlConnection connection = _databaseService.GetConnectionString())
             {
-                using (SqlConnection connection = _databaseService.GetConnectionString())
+                try
                 {
                     connection.Open();
 
@@ -340,18 +403,8 @@ namespace VehicleFitmentAPI.Controllers
 
                         if (rowsAffected > 0)
                         {
-                            // There is a bug here where GetPartsByVehicleId would not be in sync after this update
-                            // Ran out of time
                             _memoryCache.Remove("GetAllParts");
-                            _memoryCache.Remove("GetPartId=" + partId);
-                            return Ok(new
-                            {
-                                PartId = partId,
-                                PartsNumber = partsNumber,
-                                PartsName = partsName,
-                                Description = description,
-                                ImageUrl = "/Images/PartsImages/" + imageUrl
-                            });
+                            return Ok("Part updated successfully");
                         }
                         else
                         {
@@ -359,10 +412,10 @@ namespace VehicleFitmentAPI.Controllers
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                return InternalServerError(ex);
+                catch (Exception ex)
+                {
+                    return InternalServerError(ex);
+                }
             }
         }
 

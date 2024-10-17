@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Azure.Storage.Blobs;
+using Microsoft.Extensions.Caching.Memory;
 using SimpleInjector;
 using SimpleInjector.Integration.WebApi;
 using System.Web.Http;
@@ -36,6 +37,7 @@ namespace VehicleFitmentAPI
             container.Register<VehicleController>(Lifestyle.Transient);
             container.Register<FitmentController>(Lifestyle.Transient);
             container.Register<HomeController>(Lifestyle.Singleton);
+            container.Register(() => new BlobServiceClient(System.Configuration.ConfigurationManager.ConnectionStrings["AzureBlobStorage"].ConnectionString), Lifestyle.Singleton);
             container.RegisterWebApiControllers(GlobalConfiguration.Configuration);
 
             container.Verify();

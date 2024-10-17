@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Drawing;
+using System.Reflection;
 using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
@@ -177,57 +179,49 @@ namespace VehicleFitmentAPI.Controllers
                 return BadRequest("Invalid Vehicle ID.");
             }
 
+            string cacheKey = "GetVehicleId=" + vehicle.VehicleId;
+
             using (SqlConnection connection = _databaseService.GetConnectionString())
             {
                 try
                 {
-                    Vehicle existingVehicle = null;
-
-                    string cacheKey = "GetVehicleId=" + vehicle.VehicleId;
-
-                    existingVehicle = _memoryCache.Get(cacheKey) as Vehicle;
-
                     connection.Open();
 
-                    string selectQuery = "SELECT VehicleId, Make, Model, Trim, ModelYear FROM Vehicle WHERE VehicleId = @VehicleId";
+                    string selectQuery = "SELECT * FROM Vehicle WHERE VehicleId = @VehicleId";
 
-                    if (existingVehicle == null)
+                    string updateQuery = "UPDATE Vehicle SET ";
+                    
+                    var parameters = new List<SqlParameter>();
+
+                    parameters.Add(new SqlParameter("@VehicleId", vehicle.VehicleId));
+
+                    if (!string.IsNullOrEmpty(vehicle.Make))
                     {
-
-                        using (SqlCommand selectCommand = new SqlCommand(selectQuery, connection))
-                        {
-                            selectCommand.Parameters.AddWithValue("@VehicleId", vehicle.VehicleId);
-
-                            using (SqlDataReader reader = selectCommand.ExecuteReader())
-                            {
-                                if (reader.Read())
-                                {
-                                    existingVehicle = new Vehicle
-                                    {
-                                        VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
-                                        Make = reader.GetString(reader.GetOrdinal("Make")),
-                                        Model = reader.GetString(reader.GetOrdinal("Model")),
-                                        ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
-                                        Trim = reader.GetString(reader.GetOrdinal("Trim"))
-                                    };
-                                }
-                            }
-                        }
+                        updateQuery += "Make = @Make, ";
+                        parameters.Add(new SqlParameter("@Make", vehicle.Make));
+                    }
+                    if (!string.IsNullOrEmpty(vehicle.Model))
+                    {
+                        updateQuery += "Model = @Model, ";
+                        parameters.Add(new SqlParameter("@Model", vehicle.Model));
+                    }
+                    if (!string.IsNullOrEmpty(vehicle.Trim))
+                    {
+                        updateQuery += "Trim = @Trim, ";
+                        parameters.Add(new SqlParameter("@Trim", vehicle.Trim));
+                    }
+                    if (vehicle.ModelYear > 1930)
+                    {
+                        updateQuery += "ModelYear = @ModelYear, ";
+                        parameters.Add(new SqlParameter("@ModelYear", vehicle.ModelYear));
                     }
 
-                    if (existingVehicle == null)
-                    {
-                        return NotFound();
-                    }
+                    updateQuery = updateQuery.TrimEnd(',', ' ') + " WHERE VehicleId = @VehicleId";
+                    Vehicle updatedVehicle = new Vehicle();
 
-                    string updateQuery = "UPDATE Vehicle SET Make = @Make, Model = @Model, ModelYear = @ModelYear, Trim = @Trim WHERE VehicleId = @VehicleId";
                     using (SqlCommand updateCommand = new SqlCommand(updateQuery, connection))
                     {
-                        updateCommand.Parameters.AddWithValue("@VehicleId", vehicle.VehicleId);
-                        updateCommand.Parameters.AddWithValue("@Make", string.IsNullOrEmpty(vehicle.Make) ? existingVehicle.Make : vehicle.Make);
-                        updateCommand.Parameters.AddWithValue("@Model", string.IsNullOrEmpty(vehicle.Model) ? existingVehicle.Model : vehicle.Model);
-                        updateCommand.Parameters.AddWithValue("@ModelYear", vehicle.ModelYear <= 1930 ? existingVehicle.ModelYear : vehicle.ModelYear);
-                        updateCommand.Parameters.AddWithValue("@Trim", string.IsNullOrEmpty(vehicle.Trim) ? existingVehicle.Trim : vehicle.Trim);
+                        updateCommand.Parameters.AddRange(parameters.ToArray());
 
                         int rowsAffected = updateCommand.ExecuteNonQuery();
 
@@ -241,7 +235,7 @@ namespace VehicleFitmentAPI.Controllers
                                 {
                                     if (reader.Read())
                                     {
-                                        existingVehicle = new Vehicle
+                                        updatedVehicle = new Vehicle
                                         {
                                             VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
                                             Make = reader.GetString(reader.GetOrdinal("Make")),
@@ -253,9 +247,9 @@ namespace VehicleFitmentAPI.Controllers
                                 }
                             }
 
-                            _memoryCache.Set(cacheKey, existingVehicle);
-
-                            return Ok(existingVehicle);
+                            _memoryCache.Set(cacheKey, updatedVehicle);
+                            _memoryCache.Remove("GetAllVehicles");
+                            return Ok(updatedVehicle);
                         }
                         else
                         {
