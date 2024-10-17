@@ -100,7 +100,6 @@
             <select id="partsDropdown" class="parts-dropdown form-control mb-4">
                 <option value="">Select a Part</option>
             </select>
-            <input type="hidden" id="selectedPartsId" class="form-control">
             <div class="form-group">
                 <label for="selectedPartsName">PartsName</label>
                 <input type="text" id="selectedPartsName" class="form-control">
@@ -162,15 +161,7 @@
                     return response.json();
                 })
                 .then(data => {
-                    var dropdown = document.getElementById('partsDropdown');
-                    var option = document.createElement('option');
-                    option.value = data.Id;
-                    option.text = data.PartsName + " (" + data.PartsNumber + ")";
-                    dropdown.add(option);
-                    document.getElementById('partsNumber').value = "";
-                    document.getElementById('partsName').value = "";
-                    document.getElementById('description').value = "";
-                    document.getElementById('imageFile').value = "";
+                    fetchParts();
                     showToast('Success', 'Part Added');
 
                 })
@@ -209,15 +200,7 @@
                         return response.json();
                     })
                     .then(data => {
-                        var dropdowns = document.getElementsByClassName("vehicle-dropdown");
-                        Array.from(dropdowns).forEach(dd => {
-                            var option = document.createElement('option');
-                            option.value = data.Id;
-                            option.text = data.ModelYear + " " + data.Make + " " + data.Model + " " + data.Trim;
-                            dd.add(option);
-                        });
-
-
+                        fetchVehicles();
                         showToast("Success", "Vehicle Added!");
                     })
                     .catch(error => {
@@ -362,7 +345,7 @@
             });
 
             document.getElementById('deletePartsButton').addEventListener('click', function () {
-                var partsId = document.getElementById('selectedPartsId').value;
+                var partsId = event.target.value;
 
                 fetch('/api/parts/' + partsId, {
                     method: 'DELETE'

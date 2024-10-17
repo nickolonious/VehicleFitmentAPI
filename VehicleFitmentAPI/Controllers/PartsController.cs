@@ -8,6 +8,7 @@ using System.Web.Http;
 using VehicleFitmentAPI.Models;
 using VehicleFitmentAPI.Services;
 using Azure.Storage.Blobs;
+using System.Collections;
 
 
 namespace VehicleFitmentAPI.Controllers
@@ -212,6 +213,7 @@ namespace VehicleFitmentAPI.Controllers
                         if (rowsAffected > 0)
                         {
                             _memoryCache.Remove("GetAllParts");
+
                             return Ok(newPart);
                         }
                         else
@@ -274,11 +276,6 @@ namespace VehicleFitmentAPI.Controllers
                                     parts.Add(part);
                                 }
                             }
-                        }
-
-                        if (parts != null && parts.Count > 0)
-                        {
-                            _memoryCache.Set(cacheKey, parts);
                         }
                     }
                     catch (Exception ex)
@@ -404,6 +401,32 @@ namespace VehicleFitmentAPI.Controllers
                         if (rowsAffected > 0)
                         {
                             _memoryCache.Remove("GetAllParts");
+                            _memoryCache.Remove("GetPartById=" + partId);
+
+                            var fitmentQuery = "SELECT * FROM FITMENT WHERE PartId = @PartId AND VehicleId IN (SELECT DISTINCT VehicleId FROM FITMENT WHERE PartId = @PartId)";
+                            List<Fitment> matchingFitments = new List<Fitment>();
+                            using (SqlCommand fitmentCommand = new SqlCommand(fitmentQuery, connection))
+                            {
+                                fitmentCommand.Parameters.AddWithValue("@PartId", partId);
+
+                                using (SqlDataReader reader = fitmentCommand.ExecuteReader())
+                                {
+                                    while (reader.Read())
+                                    {
+                                        Fitment fitment = new Fitment
+                                        {
+                                            FitmentId = reader.GetInt32(reader.GetOrdinal("FitmentId")),
+                                            VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId"))
+                                        };
+                                    }
+                                }
+                            }
+
+                            foreach (Fitment fitment in matchingFitments)
+                            {
+                                _memoryCache.Remove("GetPartsByVehicleId=" + fitment.VehicleId);
+                            }
+
                             return Ok("Part updated successfully");
                         }
                         else
