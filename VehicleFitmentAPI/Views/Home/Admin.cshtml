@@ -351,6 +351,7 @@
                         document.getElementById("selectedModelYear").value = '';
                         document.getElementById("selectedMake").value = '';
                         document.getElementById("selectedModel").value = '';
+                        fetchVehicles();
                         showToast("Success", "Vehicle Deleted!");
 
                     })
@@ -381,6 +382,7 @@
                         document.getElementById("selectedPartsNumber").value = '';
                         document.getElementById("selectedDescription").value = '';
                         document.getElementById("selectedImageUrl").value = '';
+                        fetchParts();
                         showToast('Success', 'Part deleted');
                     })
                     .catch(error => {
