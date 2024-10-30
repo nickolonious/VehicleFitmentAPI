@@ -253,7 +253,7 @@
     </Compile>
     <Compile Include="Interfaces\ICacheService.cs" />
     <Compile Include="Interfaces\IDatabaseService.cs" />
-    <Compile Include="Interfaces\IVehicleService.cs" />
+    <Compile Include="Interfaces\IVehicleData.cs" />
     <Compile Include="Models\Fitment.cs" />
     <Compile Include="Models\FitmentView.cs" />
     <Compile Include="Models\Part.cs" />
@@ -261,7 +261,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\CacheService.cs" />
     <Compile Include="Services\DatabaseService.cs" />
-    <Compile Include="Services\VehicleService.cs" />
+    <Compile Include="Data\VehicleData.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Areas\HelpPage\HelpPage.css" />

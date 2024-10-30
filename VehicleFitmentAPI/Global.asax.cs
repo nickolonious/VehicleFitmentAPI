@@ -32,7 +32,7 @@ namespace VehicleFitmentAPI
             string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["VehicleConnection"].ConnectionString;
             container.Register<IDatabaseService>(() => new DatabaseService(connectionString), Lifestyle.Singleton);
             container.Register<DatabaseService>(() => new DatabaseService(connectionString), Lifestyle.Singleton);
-            container.Register<IVehicleService, VehicleService>(Lifestyle.Singleton);
+            container.Register<IVehicleData, VehicleData>(Lifestyle.Singleton);
             container.Register<ICacheService, CacheService>(Lifestyle.Singleton);
             container.Register(() => new MemoryCache(new MemoryCacheOptions()), Lifestyle.Singleton);
             container.Register<IMemoryCache>(() => container.GetInstance<MemoryCache>(), Lifestyle.Singleton);

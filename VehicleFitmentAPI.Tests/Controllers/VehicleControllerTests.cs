@@ -14,19 +14,19 @@ namespace VehicleFitmentAPI.Tests.Controllers
     [TestClass]
     public class VehicleControllerTests
     {
-        private Mock<IVehicleService> _mockVehicleService;
+        private Mock<IVehicleData> _mockVehicleData;
         private Mock<ICacheService> _mockCacheService;
         private VehicleController _vehicleController;
 
         [TestInitialize]
         public void Setup()
         {
-            _mockVehicleService = new Mock<IVehicleService>();
+            _mockVehicleData = new Mock<IVehicleData>();
             _mockCacheService = new Mock<ICacheService>();
 
             _vehicleController = new VehicleController(
                 _mockCacheService.Object,
-                _mockVehicleService.Object
+                _mockVehicleData.Object
             );
         }
 
@@ -70,7 +70,7 @@ namespace VehicleFitmentAPI.Tests.Controllers
                 new Vehicle { VehicleId = 2, Make = "Subaru", Model = "Impreza", ModelYear = 2017, Trim = "Sport" }
             };
 
-            _mockVehicleService.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
+            _mockVehicleData.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
 
             // Act
             IHttpActionResult actionResult = _vehicleController.Get();
@@ -105,7 +105,7 @@ namespace VehicleFitmentAPI.Tests.Controllers
                 new Vehicle { VehicleId = 2, Make = "Subaru", Model = "Impreza", ModelYear = 2017, Trim = "Sport" }
             };
 
-            _mockVehicleService.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
+            _mockVehicleData.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
 
             // Act
             IHttpActionResult actionResult = _vehicleController.Get();
@@ -140,7 +140,7 @@ namespace VehicleFitmentAPI.Tests.Controllers
                 new Vehicle { VehicleId = 2, Make = "Mitsubishi", Model = "Mirage", ModelYear = 2024 }
             };
 
-            _mockVehicleService.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
+            _mockVehicleData.Setup(ds => ds.GetVehicles()).Returns(vehiclesFromDb);
 
             // Act
             IHttpActionResult actionResult = _vehicleController.Get();
@@ -216,7 +216,7 @@ namespace VehicleFitmentAPI.Tests.Controllers
 
             _mockCacheService.Setup(mc => mc.TryGetValue("GetVehicleId=", out expectedVehicle)).Returns(false);
 
-            _mockVehicleService.Setup(ds => ds.GetVehicle(expectedVehicle.VehicleId)).Returns(expectedVehicle);
+            _mockVehicleData.Setup(ds => ds.GetVehicle(expectedVehicle.VehicleId)).Returns(expectedVehicle);
 
             // Act
             IHttpActionResult actionResult = _vehicleController.Get(expectedVehicle.VehicleId);
@@ -231,6 +231,218 @@ namespace VehicleFitmentAPI.Tests.Controllers
             Assert.AreEqual(2017, getResult.Content.ModelYear);
             Assert.AreEqual("Sport", getResult.Content.Trim);
             Assert.IsInstanceOfType(actionResult, typeof(OkNegotiatedContentResult<Vehicle>));
+        }
+
+        [TestMethod]
+        public void Get_CacheReturnsError()
+        {
+            // Arrange
+            _mockCacheService.Setup(mc => mc.TryGetValue(It.IsAny<string>(), out It.Ref<Vehicle>.IsAny))
+                             .Throws(new Exception("Test exception"));
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Get(2);
+
+            // Assert
+            Assert.IsInstanceOfType(actionResult, typeof(ExceptionResult));
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleMakeIsEmpty()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "",
+                Model = "Impreza",
+                ModelYear = 2017,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleMakeIsNull()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = null,
+                Model = "Impreza",
+                ModelYear = 2017,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleModelIsEmptyString()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "",
+                ModelYear = 2017,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+        
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleModelIsNull()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = null,
+                ModelYear = 2017,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleTrimIsEmptyString()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "Impreza",
+                ModelYear = 2017,
+                Trim = ""
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleTrimIsNull()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "Impreza",
+                ModelYear = 2017,
+                Trim = null
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleModelYearIs1930()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "Impreza",
+                ModelYear = 1930,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsBadRequestWhenVehicleTrimIsLessThan1930()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "Impreza",
+                ModelYear = 1929,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var badRequestResult = actionResult as BadRequestErrorMessageResult;
+
+            // Assert
+            Assert.IsNotNull(badRequestResult);
+            Assert.IsInstanceOfType(actionResult, typeof(BadRequestErrorMessageResult));
+            Assert.AreEqual("Make, Model, and Trim must be filled out, Model Year must be greater than 1930", badRequestResult.Message);
+        }
+
+        [TestMethod]
+        public void Post_ReturnsOKWhenAll()
+        {
+            // Arrange
+            Vehicle vehicle = new Vehicle
+            {
+                Make = "Subaru",
+                Model = "Impreza",
+                ModelYear = 2017,
+                Trim = "Sport"
+            };
+
+            // Act
+            IHttpActionResult actionResult = _vehicleController.Post(vehicle);
+            var okResult = actionResult as OkNegotiatedContentResult<Vehicle>;
+
+            // Assert
+            Assert.IsNotNull(okResult);
+            Assert.IsInstanceOfType(actionResult, typeof(OkNegotiatedContentResult<Vehicle>));
+
         }
     }
 }

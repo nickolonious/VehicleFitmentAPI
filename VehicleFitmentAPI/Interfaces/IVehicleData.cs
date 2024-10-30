@@ -4,7 +4,7 @@ using VehicleFitmentAPI.Models;
 
 namespace VehicleFitmentAPI.Interfaces
 {
-    public interface IVehicleService
+    public interface IVehicleData
     {
         List<Vehicle> GetVehicles();
         Vehicle InsertVehicle(Vehicle vehicle);

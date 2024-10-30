@@ -6,10 +6,10 @@ using VehicleFitmentAPI.Models;
 
 namespace VehicleFitmentAPI.Services
 {
-    public class VehicleService : IVehicleService
+    public class VehicleData : IVehicleData
     {
         private readonly IDatabaseService _databaseService;
-        public VehicleService(IDatabaseService databaseService)
+        public VehicleData(IDatabaseService databaseService)
         {
             _databaseService = databaseService;
         }

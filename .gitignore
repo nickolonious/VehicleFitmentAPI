@@ -367,3 +367,4 @@ FodyWeavers.xsd
 /VehicleFitmentAPI/Images/PartsImages/*.bmp
 /VehicleFitmentAPI/Images/PartsImages/*.webp
 /VehicleFitmentAPI/Images/PartsImages/*.tiff
+/VehicleFitmentAPI/Web.config

@@ -10,12 +10,12 @@ namespace VehicleFitmentAPI.Controllers
     public class VehicleController : ApiController
     {
         private readonly ICacheService _cacheService;
-        private readonly IVehicleService _vehicleService;
+        private readonly IVehicleData _vehicleData;
 
-        public VehicleController(ICacheService cacheService, IVehicleService vehicleService)
+        public VehicleController(ICacheService cacheService, IVehicleData vehicleData)
         {
             _cacheService = cacheService;
-            _vehicleService = vehicleService;
+            _vehicleData = vehicleData;
         }
 
         // GET api/<controller>
@@ -30,7 +30,7 @@ namespace VehicleFitmentAPI.Controllers
                 if (vehicles == null || vehicles.Count == 0)
                 {
                     vehicles = new List<Vehicle>();
-                    vehicles = _vehicleService.GetVehicles();
+                    vehicles = _vehicleData.GetVehicles();
 
                     _cacheService.Set(cacheKey, vehicles, null);
                 }
@@ -46,50 +46,60 @@ namespace VehicleFitmentAPI.Controllers
         // GET api/<controller>/5
         public IHttpActionResult Get(int id)
         {
-            string cacheKey = "GetVehicleId=" + id;
-
-            _cacheService.TryGetValue(cacheKey, out Vehicle vehicle);
-
-            if (vehicle == null)
+            try
             {
-                vehicle = new Vehicle();
-
-                try
+                if (id <= 0)
                 {
-                    vehicle = _vehicleService.GetVehicle(id);
+                    return BadRequest("Invalid Vehicle ID.");
+                }
+
+                string cacheKey = "GetVehicleId=" + id;
+
+                _cacheService.TryGetValue(cacheKey, out Vehicle vehicle);
+
+                if (vehicle == null)
+                {
+                    vehicle = new Vehicle();
+
+
+                    vehicle = _vehicleData.GetVehicle(id);
 
                     if (vehicle.VehicleId > 0)
                     {
                         _cacheService.Set(cacheKey, vehicle, null);
                     }
                 }
-                catch (Exception ex)
-                {
-                    return InternalServerError(ex);
-                }
-                
+
+                return Ok(vehicle);
+
             }
-            return Ok(vehicle);
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
         }
 
         // POST api/<controller>
         public IHttpActionResult Post([FromBody] Vehicle vehicle)
         {
-            if (vehicle.Make == String.Empty || vehicle.Trim == String.Empty || vehicle.Model == String.Empty || vehicle.ModelYear <= 1930)
+            if ((vehicle.Make == String.Empty || vehicle.Make == null)
+                || (vehicle.Trim == String.Empty || vehicle.Trim == null)
+                || (vehicle.Model == String.Empty || vehicle.Model == null)
+                || vehicle.ModelYear <= 1930)
+
             {
                 return BadRequest("Make, Model, and Trim must be filled out, Model Year must be greater than 1930");
             }
 
             try
             {
-                vehicle = _vehicleService.InsertVehicle(vehicle);
+                vehicle = _vehicleData.InsertVehicle(vehicle);
                 return Ok(vehicle);
             }
             catch (Exception ex)
             {
                 return InternalServerError(ex);
             }
-            
         }
 
         // PUT api/<controller>
@@ -133,7 +143,7 @@ namespace VehicleFitmentAPI.Controllers
 
                 updateQuery = updateQuery.TrimEnd(',', ' ') + " WHERE VehicleId = @VehicleId";
                     
-                Vehicle updatedVehicle = _vehicleService.UpdateVehicle(parameters, updateQuery, vehicle);
+                Vehicle updatedVehicle = _vehicleData.UpdateVehicle(parameters, updateQuery, vehicle);
 
                 _cacheService.Set(cacheKey, updatedVehicle, null);
                 _cacheService.Remove("GetAllVehicles");
@@ -155,7 +165,7 @@ namespace VehicleFitmentAPI.Controllers
 
             try
             {
-                int rowsAffected = _vehicleService.DeleteVehicle(id);
+                int rowsAffected = _vehicleData.DeleteVehicle(id);
        
                 if (rowsAffected > 0)
                 {
