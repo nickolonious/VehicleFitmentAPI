@@ -11,7 +11,7 @@ using VehicleFitmentAPI.Controllers;
 namespace VehicleFitmentAPI.Tests.Controllers
 {
     [TestClass]
-    public class ValuesControllerTest
+    public class PartsControllerTests
     {
         //[TestMethod]
         //public void Get()

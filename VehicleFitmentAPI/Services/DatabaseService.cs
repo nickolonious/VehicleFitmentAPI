@@ -2,10 +2,6 @@
 
 namespace VehicleFitmentAPI.Services
 {
-    public interface IDatabaseService
-    {
-        SqlConnection GetConnectionString();
-    }
     
     public class DatabaseService : IDatabaseService
     {
