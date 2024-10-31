@@ -105,15 +105,15 @@ namespace VehicleFitmentAPI.Controllers
         // PUT api/<controller>
         public IHttpActionResult Put([FromBody] Vehicle vehicle)
         {
-            if (vehicle.VehicleId <= 0)
-            {
-                return BadRequest("Invalid Vehicle ID.");
-            }
-
-            string cacheKey = "GetVehicleId=" + vehicle.VehicleId;
-
             try
             {
+                if (vehicle.VehicleId <= 0)
+                {
+                    return BadRequest("Invalid Vehicle ID.");
+                }
+
+                string cacheKey = "GetVehicleId=" + vehicle.VehicleId;
+
                 string updateQuery = "UPDATE Vehicle SET ";
                     
                 var parameters = new List<SqlParameter>();
