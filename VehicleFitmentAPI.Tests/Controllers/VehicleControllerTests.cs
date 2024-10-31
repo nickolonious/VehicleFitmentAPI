@@ -842,8 +842,6 @@ namespace VehicleFitmentAPI.Tests.Controllers
             _mockCacheService.Verify(mc => mc.Remove("GetVehicleId=" + vehicleId), Times.Never);
 
         }
-
-
         #endregion
     }
 }
