@@ -1,14 +1,11 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using NUnit.Framework.Internal;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Web.Http;
 using System.Web.Http.Results;
-using System.Web.Mvc;
 using VehicleFitmentAPI.Controllers;
 using VehicleFitmentAPI.Interfaces;
 using VehicleFitmentAPI.Models;
@@ -42,8 +39,8 @@ namespace VehicleFitmentAPI.Tests.Controllers
             // Arrange
             var vehicles = new List<Vehicle>
             {
-                new Vehicle { VehicleId = 1, Make = "Subaru", Model = "Impreza", ModelYear = 2017 },
-                new Vehicle { VehicleId = 2, Make = "Mitsubishi", Model = "Mirage", ModelYear = 2024 }
+                new Vehicle { VehicleId = 1, Make = "Subaru", Model = "Impreza", ModelYear = 2017, Trim="Sport" },
+                new Vehicle { VehicleId = 2, Make = "Mitsubishi", Model = "Mirage", ModelYear = 2024, Trim="Sport" }
             };
 
             _mockCacheService.Setup(mc => mc.TryGetValue("GetAllVehicles", out vehicles)).Returns(true);
@@ -56,17 +53,13 @@ namespace VehicleFitmentAPI.Tests.Controllers
             Assert.IsNotNull(contentResult);
             Assert.IsNotNull(contentResult.Content);
             Assert.AreEqual(2, contentResult.Content.Count);
-            Assert.AreEqual("Subaru", contentResult.Content[0].Make);
-            Assert.AreEqual("Impreza", contentResult.Content[0].Model);
-            Assert.AreEqual(2017, contentResult.Content[0].ModelYear);
+            CollectionAssert.AreEqual(vehicles, contentResult.Content);
+
             Assert.IsInstanceOfType(actionResult, typeof(OkNegotiatedContentResult<List<Vehicle>>));
 
             _mockCacheService.Verify(mc => mc.TryGetValue("GetAllVehicles", out vehicles), Times.Once);
 
             _mockCacheService.Verify(mc => mc.Set("GetAllVehicles", vehicles, null), Times.Never);
-
-            CollectionAssert.AreEqual(vehicles, contentResult.Content);
-
         }
 
         [TestMethod]
@@ -836,6 +829,7 @@ namespace VehicleFitmentAPI.Tests.Controllers
 
             Assert.IsNotNull(errorResult);
             Assert.IsInstanceOfType(errorResult, typeof(ExceptionResult));
+            
             _mockVehicleData.Verify(ds => ds.DeleteVehicle(vehicleId), Times.Once);
 
             _mockCacheService.Verify(mc => mc.Remove("GetAllVehicles"), Times.Never);

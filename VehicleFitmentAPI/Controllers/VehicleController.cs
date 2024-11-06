@@ -61,7 +61,6 @@ namespace VehicleFitmentAPI.Controllers
                 {
                     vehicle = new Vehicle();
 
-
                     vehicle = _vehicleData.GetVehicle(id);
 
                     if (vehicle.VehicleId > 0)
