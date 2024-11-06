@@ -29,11 +29,11 @@ namespace VehicleFitmentAPI.Services
                     {
                         var vehicle = new Vehicle
                         {
-                            VehicleId = reader.GetInt32(0),
-                            Make = reader.GetString(1),
-                            Model = reader.GetString(2),
-                            ModelYear = reader.GetInt32(3),
-                            Trim = reader.GetString(4)
+                            VehicleId = reader.GetInt32(reader.GetOrdinal("VehicleId")),
+                            Make = reader.GetString(reader.GetOrdinal("Make")),
+                            Model = reader.GetString(reader.GetOrdinal("Model")),
+                            ModelYear = reader.GetInt32(reader.GetOrdinal("ModelYear")),
+                            Trim = reader.GetString(reader.GetOrdinal("Trim"))
                         };
                         vehicles.Add(vehicle);
                     }
